@@ -93,3 +93,40 @@ class SalesAnalyst:
         last_14_days_avg = daily_rev.tail(14).mean()
         forecast_next_7_days = last_14_days_avg * 7
         return forecast_next_7_days
+    # --- פונקציות השלמה ל-15 (רמה: ניהול עסקי) ---
+
+    # 1. מגמת מכירות (Sales Trend) - האם אנחנו בעליה או ירידה לעומת חודש שעבר?
+    def get_sales_trend(self):
+        growth = self.get_mom_growth_rate()
+        if growth > 0:
+            return f"Up (↑ {growth:.2f}%)"
+        elif growth < 0:
+            return f"Down (↓ {abs(growth):.2f}%)"
+        return "Stable (0%)"
+
+    # 2. זיהוי נפילות הכנסה (Detect Revenue Drops) - התראה אם היתה ירידה מעל X אחוזים
+    def detect_revenue_drops(self, threshold=-15.0):
+        if 'InvoiceDate' not in self.df.columns: return None
+        monthly_rev = self.df.set_index('InvoiceDate').resample('ME')['Revenue'].sum()
+        growth = monthly_rev.pct_change() * 100
+        
+        # מוצא את כל החודשים שבהם הירידה היתה חדה יותר מהסף (למשל יותר מ-15% ירידה)
+        drops = growth[growth < threshold]
+        if drops.empty:
+            return "No significant revenue drops detected."
+        return drops.to_dict()
+
+    # 3. לקוחות חוזרים (Repeat Customers) - כמה לקוחות קנו יותר מפעם אחת?
+    def get_repeat_customers_stats(self):
+        customer_counts = self.df.groupby('Customer ID')['Invoice'].nunique()
+        repeat_customers = customer_counts[customer_counts > 1]
+        
+        total_unique = self.df['Customer ID'].nunique()
+        repeat_count = len(repeat_customers)
+        percentage = (repeat_count / total_unique) * 100 if total_unique > 0 else 0
+        
+        return {
+            "repeat_customers_count": repeat_count,
+            "repeat_customers_percentage": f"{percentage:.2f}%",
+            "total_unique_customers": total_unique
+        }
