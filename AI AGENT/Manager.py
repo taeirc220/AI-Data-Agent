@@ -33,13 +33,14 @@ class ManagerAgent:
         - 'refund_rate' (percentage of returns/refunds)
         - 'busiest_days' (which days have most sales)
         - 'growth_rate' (monthly growth, MOM)
-        - 'pareto_analysis' (80/20 rule, top products contributing to 80 precente revenue)
+        - 'pareto_analysis' (80/20 rule, top products contributing to 80 percent revenue)
         - 'sales_anomalies' (unusual sales spikes)
         - 'bought_together' (frequently bought together)
         - 'sales_forecast' (prediction for next week)
         - 'sales_trend' (is business up or down, trend, overall direction)
         - 'revenue_drops' (detect drops, significant losses, bad months)
-        - 'repeat_customers' (loyalty, returning buyers, how many come back)
+
+        PRODUCT COMMANDS:
         - 'product_revenue' (how much money a product made, revenue per item)
         - 'product_quantity' (units sold per product, volume)
         - 'product_avg_price' (average selling price of a product)
@@ -52,13 +53,18 @@ class ManagerAgent:
         - 'top_product' (most popular item overall)
         - 'total_unique_products' (variety of items)
 
-        PRODUCT COMMANDS:
-        - 'top_product' (most popular item)
-        - 'total_unique_products' (variety of items)
-
         CUSTOMER COMMANDS:
+        - 'total_unique_customers' (how many total distinct customers)
         - 'top_customer' (who spent the most)
+        - 'top_spending_customers' (list of top spenders)
         - 'top_country' (where most orders come from)
+        - 'revenue_by_country' (revenue generated per country)
+        - 'most_popular_product_customer' (product that sold the most units)
+        - 'repeat_customer_rate' (percentage of repeat customers)
+        - 'repeat_customers' (loyalty, returning buyers, how many come back stats)
+        - 'best_selling_product_per_country' (top product for each country)
+        - 'high_value_loyal_customers' (VIP loyal customers)
+        - 'customer_average_item_price' (average item price in store)
 
         Reply ONLY with the exact command word. If unsure, reply 'unknown'.
         """
@@ -91,23 +97,28 @@ class ManagerAgent:
         
         # --- לוגיקת ניתוב (Routing) ---
         
-        # 1. מחלקת מכירות (Sales)
+        # רשימות הפקודות המסודרות לפי מחלקות
         sales_commands = [
             "total_revenue", "total_orders", "total_items_sold", "average_order_value",
             "top_countries_revenue", "monthly_revenue", "top_products_revenue", 
             "refund_rate", "busiest_days", "growth_rate", "pareto_analysis", 
-            "sales_anomalies", "bought_together", "sales_forecast","sales_trend",
-              "revenue_drops", "repeat_customers", "product_revenue", "product_quantity", "product_avg_price", "product_trend",
-            "product_return_rate", "product_share", "product_popularity", 
-            "product_frequency", "product_lifecycle", "top_product", "total_unique_products"
-        
+            "sales_anomalies", "bought_together", "sales_forecast", "sales_trend", "revenue_drops"
         ]
+        
         product_commands = [
             "product_revenue", "product_quantity", "product_avg_price", "product_trend",
             "product_return_rate", "product_share", "product_popularity", 
             "product_frequency", "product_lifecycle", "top_product", "total_unique_products"
         ]
+        
+        customer_commands = [
+            "total_unique_customers", "top_customer", "top_spending_customers", 
+            "top_country", "revenue_by_country", "most_popular_product_customer", 
+            "repeat_customer_rate", "repeat_customers", "best_selling_product_per_country", 
+            "high_value_loyal_customers", "customer_average_item_price"
+        ]
 
+        # 1. מחלקת מכירות (Sales)
         if request_type in sales_commands:
             print("[Manager Agent] 📞 Routing to Sales Analyst...")
             analyst = SalesAnalyst(df)
@@ -152,83 +163,93 @@ class ManagerAgent:
                 res = analyst.get_simple_sales_forecast()
                 return f"🔮 Estimated sales forecast for the next 7 days: ${res:,.2f}"
             elif request_type == "bought_together":
-                # לצורך הדוגמה אנחנו שולחים מוצר קבוע, בגרסה הבאה נחלץ את שם המוצר מהשאלה
                 res = analyst.get_frequently_bought_together('WHITE HANGING HEART T-LIGHT HOLDER')
                 return f"💡 People who bought that also bought: {res}"
+            elif request_type == "sales_trend":
+                res = analyst.get_sales_trend()
+                return f"📈 Current Sales Trend: {res}"
+            elif request_type == "revenue_drops":
+                res = analyst.detect_revenue_drops()
+                if isinstance(res, str): 
+                    return res
+                return f"⚠️ Significant Revenue Drops Detected: {res}"
 
         # 2. מחלקת מוצרים (Products)
-        
-            elif request_type in product_commands:
-                print("[Manager Agent] 📞 Routing to Product Analyst...")
-                analyst = ProductAnalyst(df)
+        elif request_type in product_commands:
+            print("[Manager Agent] 📞 Routing to Product Analyst...")
+            analyst = ProductAnalyst(df)
             
             if request_type == "product_revenue":
                 res = analyst.get_product_revenue()
                 return f"💰 Revenue per Product (Top 5): {list(res.items())[:5]}"
-            
             elif request_type == "product_quantity":
                 res = analyst.get_total_products_sold()
                 return f"📦 Units Sold per Product (Top 5): {list(res.items())[:5]}"
-            
             elif request_type == "product_avg_price":
                 res = analyst.get_average_price_per_product()
                 return f"🏷️ Average Weighted Price per Product: {list(res.items())[:5]}"
-            
             elif request_type == "product_return_rate":
                 res = analyst.get_product_return_rate()
                 return f"⚠️ Product Return Rates (High to Low): {list(res.items())[:5]}"
-            
             elif request_type == "product_share":
                 return f"📊 Revenue Share % per Product: {analyst.get_product_revenue_share()}"
-            
             elif request_type == "product_popularity":
                 return f"⭐ Product Popularity Scores (Weighted): {analyst.get_product_popularity_score()}"
-            
             elif request_type == "product_frequency":
                 return f"🛒 Purchase Frequency (% of orders): {analyst.get_product_purchase_frequency()}"
-            
             elif request_type == "top_product":
-                # משתמשים בפונקציה החדשה שמחזירה את הכי נמכר
                 res = analyst.get_top_products_by_quantity(limit=1)
                 return f"🏆 Our top selling product is: {res}."
-            
             elif request_type == "total_unique_products":
                 res = analyst.get_total_products_sold()
                 return f"🔢 We have {len(res)} unique products in our catalog."
-
-            # פונקציות שדורשות שם מוצר ספציפי (בינתיים עם מוצר דוגמה מה-CSV)
             elif request_type in ["product_trend", "product_lifecycle"]:
                 example_product = "WHITE HANGING HEART T-LIGHT HOLDER"
                 if request_type == "product_trend":
                     return f"📉 Trend for '{example_product}': {analyst.get_product_sales_trend(example_product)}"
                 return f"🔄 Lifecycle Status for '{example_product}': {analyst.get_product_lifecycle_status(example_product)}"
+
         # 3. מחלקת לקוחות (Customers)
-        elif request_type in ["top_customer", "top_country"]:
+        elif request_type in customer_commands:
             print("[Manager Agent] 📞 Routing to Customer Analyst...")
             analyst = CustomerAnalyst(df)
-            if request_type == "top_customer":
+            
+            if request_type == "total_unique_customers":
+                res = analyst.get_total_unique_customers()
+                return f"👥 We have {res} unique customers."
+            elif request_type == "top_customer":
                 res = analyst.get_top_customer()
                 return f"🥇 Our top customer ID is: {res}."
-            res = analyst.get_top_country()
-            return f"📍 Most orders come from: {res}."
-        elif request_type == "sales_trend":
-                res = analyst.get_sales_trend()
-                return f"📈 Current Sales Trend: {res}"
-
-        elif request_type == "revenue_drops":
-                res = analyst.detect_revenue_drops()
-                if isinstance(res, str): # אם חזר טקסט "No drops"
-                    return res
-                return f"⚠️ Significant Revenue Drops Detected: {res}"
-
-        elif request_type == "repeat_customers":
+            elif request_type == "top_spending_customers":
+                res = analyst.get_top_spending_customers()
+                return f"💰 Top spending customers: {res}"
+            elif request_type == "top_country":
+                res = analyst.get_top_country()
+                return f"📍 Most orders come from: {res}."
+            elif request_type == "revenue_by_country":
+                res = analyst.get_revenue_by_country()
+                return f"🌍 Revenue by Country: {res}"
+            elif request_type == "most_popular_product_customer":
+                res = analyst.get_most_popular_product()
+                return f"🛍️ The most popular product by units sold is: {res}."
+            elif request_type == "repeat_customer_rate":
+                res = analyst.get_repeat_customer_rate()
+                return f"🔄 Repeat Customer Rate: {res}%."
+            elif request_type == "repeat_customers":
                 res = analyst.get_repeat_customers_stats()
                 return (f"🔄 Customer Loyalty Stats:\n"
                         f"- Repeat Customers: {res['repeat_customers_count']}\n"
-                        f"- Retention Rate: {res['repeat_customers_percentage']}\n"
+                        f"- Retention Rate: {res['repeat_customers_percentage']}%\n"
                         f"- Total Unique Customers: {res['total_unique_customers']}")
+            elif request_type == "best_selling_product_per_country":
+                res = analyst.get_best_selling_product_per_country()
+                return f"🗺️ Best selling products per country: {res}"
+            elif request_type == "high_value_loyal_customers":
+                res = analyst.get_high_value_loyal_customers()
+                return f"💎 VIP Loyal Customers (IDs): {res}"
+            elif request_type == "customer_average_item_price":
+                res = analyst.get_average_item_price()
+                return f"🏷️ The average item price is ${res}."
 
         # במקרה שה-AI לא זיהה פקודה
         return "I'm not sure how to handle that request yet. Try asking about revenue, growth, or top products!"
-
-# סוף הקובץ - אין פקודות הרצה מחוץ ל-Class
