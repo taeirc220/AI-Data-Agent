@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 # ייבוא הסוכנים שלנו
-from Data_Agent import DataAgent
+
 from Sales_Analyst import SalesAnalyst
 from Product_Analyst import ProductAnalyst
 from Customer_Analyst import CustomerAnalyst
@@ -11,8 +11,8 @@ from Customer_Analyst import CustomerAnalyst
 load_dotenv()
 
 class ManagerAgent:
-    def __init__(self, data_file_path):
-        self.data_file_path = data_file_path
+    def __init__(self, df):
+        self.df = df
         self.ai_client = OpenAI()
     
     def _translate_to_command(self, user_text):
@@ -89,8 +89,7 @@ class ManagerAgent:
         print(f"[Manager Agent] 🎯 AI determined command: '{request_type}'")
         
         # טעינת הנתונים דרך ה-Data Agent
-        d_agent = DataAgent(self.data_file_path)
-        df = d_agent.get_data()
+        df = self.df
         
         if df is None:
             return "Sorry, I couldn't get the data from the Data Agent."

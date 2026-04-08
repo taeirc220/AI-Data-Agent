@@ -1,5 +1,6 @@
 # We import our Manager to handle the logic
 from Manager import ManagerAgent
+from Data_Agent import DataAgent # הוספנו ייבוא של סוכן הנתונים לכאן
 
 def start_app():
     """
@@ -7,11 +8,22 @@ def start_app():
     """
     print("=========================================")
     print("🤖 Welcome to the AI Data Department 🤖")
-    print("============================================")
+    print("=========================================")
+    
+    # --- טעינת הנתונים פעם אחת בלבד! ---
+    print("⏳ Loading data into memory, please wait...")
+    d_agent = DataAgent("online_retail_small.csv")
+    df = d_agent.get_data()
+    
+    if df is None:
+        print("❌ CRITICAL ERROR: Could not load data. Shutting down.")
+        return
+        
+    print(f"✅ Data loaded successfully! Found {len(df)} rows.")
     print("Type 'exit' or 'quit' to close the app.\n")
 
-    # Initialize the system by hiring the Manager and giving the data path
-    manager = ManagerAgent("online_retail_small.csv")
+    # במקום להעביר למנהל את שם הקובץ, אנחנו מעבירים לו את הנתונים המוכנים (df)
+    manager = ManagerAgent(df)
 
     # The infinite loop that keeps the program running waiting for user input
     while True:
