@@ -3,10 +3,14 @@ import numpy as np
 
 class CustomerAnalyst:
     def __init__(self, data_frame: pd.DataFrame):
-        # We store the dataframe here to analyze customer behavior
+        """
+        Initializes the CustomerAnalyst with a dataframe.
+        Cleans data and prepares 'Revenue' and 'InvoiceDate' columns.
+        """
+        # עבודה על עותק כדי למנוע SettingWithCopyWarning
         self.df = data_frame.copy()
         
-        # Data Preparation
+        # הכנת נתונים בסיסית
         if 'Quantity' in self.df.columns and 'Price' in self.df.columns:
             self.df['Revenue'] = self.df['Quantity'] * self.df['Price']
             
@@ -42,8 +46,11 @@ class CustomerAnalyst:
     # 🟡 LEVEL 2: MEDIUM (Grouping, Sorting, & Filtering)
     # ==========================================
 
-    def get_top_customer(self) -> int:
-        """Finds the Customer ID of the single customer who generated the most total revenue."""
+    def get_top_customer(self,limit: int = 5, country: str = None) -> int:
+        """Finds the Customer ID of the single customer who generated the most total revenue, optionally filtered by country."""
+        df_filtered = self.df
+        if country:
+            df_filtered = self.df[self.df['Country'] == country]
         top_customer = self.df.groupby('Customer ID')['Revenue'].sum().idxmax()
         return int(top_customer)
 

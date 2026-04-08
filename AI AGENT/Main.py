@@ -1,44 +1,65 @@
-import pandas as pd
-import os
+from Data_Agent import DataAgent
 from Manager import ManagerAgent
+import os
 
-def main():
-    print("🚀 Starting AI Data Agency...")
+def start_app():
+    """
+    מפעילה את אפליקציית סוכן ה-AI לניתוח נתוני ה-E-commerce.
+    """
+    print("=========================================")
+    print("🤖 AI E-commerce Data Department 🤖")
+    print("=========================================")
     
-    # הגדרת נתיב הקובץ (וודא שהשם תואם למה שיש לכם בתיקייה)
-    file_path = "online_retail_small.csv" 
+    # 1. טעינת הנתונים (Data Agent)
+    file_name = "online_retail_small.csv"
+    print(f"⏳ Loading data from {file_name}...")
     
-    # 1. בדיקה שהקובץ קיים
-    if not os.path.exists(file_path):
-        print(f"❌ Error: Could not find the data file '{file_path}' in the current directory.")
+    d_agent = DataAgent(file_name)
+    df = d_agent.get_data()
+    
+    if df is None:
+        print("❌ CRITICAL ERROR: Could not load data. Please check the file path.")
         return
-
-    # 2. טעינת הנתונים לזיכרון פעם אחת בלבד!
-    print("📊 Loading data into memory...")
-    try:
-        df = pd.read_csv(file_path, encoding='ISO-8859-1')
-        print(f"✅ Data loaded successfully! ({len(df)} rows ready).")
-    except Exception as e:
-        print(f"❌ Error loading data: {e}")
-        return
-
-    # 3. יצירת המנהל והעברת הנתונים אליו
+        
+    print(f"✅ Data loaded! Found {len(df)} rows.")
+    
+    # 2. אתחול ה-ManagerAgent המשודרג
+    # כעת המנהל הוא סוכן אוטונומי מבוסס LangGraph
+    print("🧠 Initializing AI Manager Agent...")
     manager = ManagerAgent(df)
     
-    print("🤖 Manager Agent is ready. Type 'exit' to quit.\n")
-    print("-" * 50)
-    
-    # 4. לולאת השיחה
+    print("\nSystem is ready! Type 'exit' to quit.")
+    print("Examples: 'Who is my top customer?', 'How are sales trending?', 'Hi, what can you do?'")
+
+    # 3. לולאת השיחה (The Main Loop)
     while True:
-        user_input = input("\n👤 You: ")
-        
-        if user_input.lower() in ['exit', 'quit']:
-            print("👋 Shutting down the agency. Goodbye!")
-            break
+        try:
+            # קבלת קלט מהמשתמש
+            user_input = input("\n👤 You: ").strip()
+
+            # יציאה
+            if user_input.lower() in ['exit', 'quit', 'יציאה', 'ביי']:
+                print("👋 Goodbye! Shutting down the Data Department.")
+                break
             
-        # העברת הבקשה למנהל
-        response = manager.handle_request(user_input)
-        print(f"\n🤖 Manager: {response}")
+            if not user_input:
+                continue
+
+            # שליחה למנהל וקבלת תשובה (הסוכן יחליט אם להפעיל כלים או לענות חופשי)
+            response = manager.handle_request(user_input)
+            
+            # הדפסת התשובה
+            print(f"\n👔 Manager: {response}")
+
+        except KeyboardInterrupt:
+            print("\n👋 System interrupted. Goodbye!")
+            break
+        except Exception as e:
+            print(f"\n❌ An unexpected error occurred: {e}")
 
 if __name__ == "__main__":
-    main()
+    # וודא שיש לך מפתח API מוגדר בסביבה או בקובץ .env
+    if not os.getenv("OPENAI_API_KEY"):
+        print("⚠️ Warning: OPENAI_API_KEY not found in environment variables!")
+    
+    start_app()

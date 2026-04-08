@@ -2,12 +2,22 @@ import pandas as pd
 import numpy as np
 
 class ProductAnalyst:
-    def __init__(self, data_frame):
+    def __init__(self, data_frame: pd.DataFrame):
+        """
+        Initializes the ProductAnalyst.
+        Focuses on product performance, stock health, and popularity metrics.
+        """
         self.df = data_frame.copy()
-        # חישוב הכנסה בסיסי לכל שורה (Revenue)
-        self.df['Revenue'] = self.df['Quantity'] * self.df['Price']
+        
+        # חישוב הכנסה לשורה
+        if 'Quantity' in self.df.columns and 'Price' in self.df.columns:
+            self.df['Revenue'] = self.df['Quantity'] * self.df['Price']
+            
+        # וודוא עמודת תאריך לניתוחי מגמות
         if 'InvoiceDate' in self.df.columns:
-            self.df['InvoiceDate'] = pd.to_datetime(self.df['InvoiceDate'])
+            self.df['InvoiceDate'] = pd.to_datetime(self.df['InvoiceDate'], errors='coerce')
+
+
 
     def get_total_products_sold(self) -> dict:
         """Calculates the total quantity of units sold for each product."""
