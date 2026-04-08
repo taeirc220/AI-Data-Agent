@@ -3,23 +3,17 @@ import numpy as np
 
 class CustomerAnalyst:
     def __init__(self, data_frame: pd.DataFrame):
-        """
-        Initializes the CustomerAnalyst with a dataframe.
-        Cleans data and prepares 'Revenue' and 'InvoiceDate' columns.
-        """
-        # עבודה על עותק כדי למנוע SettingWithCopyWarning
+        # Work on a copy to avoid SettingWithCopyWarning
         self.df = data_frame.copy()
-        
-        # הכנת נתונים בסיסית
+
+        # Pre-calculate revenue and parse dates
         if 'Quantity' in self.df.columns and 'Price' in self.df.columns:
             self.df['Revenue'] = self.df['Quantity'] * self.df['Price']
-            
+
         if 'InvoiceDate' in self.df.columns:
             self.df['InvoiceDate'] = pd.to_datetime(self.df['InvoiceDate'], errors='coerce')
 
-    # ==========================================
-    # 🟢 LEVEL 1: EASY (Basic Aggregations & Counts)
-    # ==========================================
+    # --- Basic metrics ---
 
     def get_total_revenue(self) -> float:
         """Calculates and returns the total revenue generated across all customer transactions."""
@@ -42,16 +36,14 @@ class CustomerAnalyst:
         """Calculates the average price of a single product in the store."""
         return float(round(self.df['Price'].mean(), 2))
 
-    # ==========================================
-    # 🟡 LEVEL 2: MEDIUM (Grouping, Sorting, & Filtering)
-    # ==========================================
+    # --- Grouped & filtered metrics ---
 
-    def get_top_customer(self,limit: int = 5, country: str = None) -> int:
+    def get_top_customer(self, limit: int = 5, country: str = None) -> int:
         """Finds the Customer ID of the single customer who generated the most total revenue, optionally filtered by country."""
         df_filtered = self.df
         if country:
             df_filtered = self.df[self.df['Country'] == country]
-        top_customer = self.df.groupby('Customer ID')['Revenue'].sum().idxmax()
+        top_customer = df_filtered.groupby('Customer ID')['Revenue'].sum().idxmax()
         return int(top_customer)
 
     def get_top_spending_customers(self, top_n: int = 5) -> dict:
@@ -77,9 +69,7 @@ class CustomerAnalyst:
         refund_rows = len(self.df[self.df['Quantity'] < 0])
         return float(round((refund_rows / total_rows) * 100, 2))
 
-    # ==========================================
-    # 🔴 LEVEL 3: HARD (Complex Grouping, Time Series, & Advanced Logic)
-    # ==========================================
+    # --- Advanced logic ---
 
     def get_repeat_customer_rate(self) -> float:
         """Calculates the percentage of customers who made more than one separate purchase (repeat buyers)."""
@@ -122,7 +112,7 @@ class CustomerAnalyst:
             Total_Orders=('InvoiceNo', 'nunique')
         )
         vips = customer_stats[
-            (customer_stats['Total_Orders'] >= order_threshold) & 
+            (customer_stats['Total_Orders'] >= order_threshold) &
             (customer_stats['Total_Spend'] >= revenue_threshold)
         ]
         return [int(cid) for cid in vips.index.tolist()]

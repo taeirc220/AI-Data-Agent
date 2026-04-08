@@ -3,21 +3,15 @@ import numpy as np
 
 class SalesAnalyst:
     def __init__(self, data_frame: pd.DataFrame):
-        """
-        Initializes the SalesAnalyst.
-        Prepares 'Revenue' and 'InvoiceDate' for advanced time-series analysis.
-        """
         self.df = data_frame.copy()
-        
-        # חישוב הכנסה בסיסי
+
         if 'Quantity' in self.df.columns and 'Price' in self.df.columns:
             self.df['Revenue'] = self.df['Quantity'] * self.df['Price']
-        
-        # המרת תאריכים
+
         if 'InvoiceDate' in self.df.columns:
             self.df['InvoiceDate'] = pd.to_datetime(self.df['InvoiceDate'], errors='coerce')
 
-    # --- רמה 1: קל (Easy) ---
+    # --- Basic metrics ---
 
     def get_total_revenue(self) -> float:
         """Calculates and returns the total revenue from all transactions."""
@@ -41,7 +35,7 @@ class SalesAnalyst:
         """Gets the top performing countries ranked by total sales revenue. Allows specifying a limit."""
         return self.df.groupby('Country')['Revenue'].sum().nlargest(limit).to_dict()
 
-    # --- רמה 2: בינוני (Medium) ---
+    # --- Grouped & filtered metrics ---
 
     def get_monthly_revenue(self) -> dict:
         """Calculates the total sales revenue grouped by month."""
@@ -52,22 +46,21 @@ class SalesAnalyst:
 
     def get_top_products_by_revenue(self, limit: int = 5, country: str = None) -> dict:
         """
-        Gets the top-selling products ranked by total revenue generated. 
+        Gets the top-selling products ranked by total revenue generated.
         Args:
             limit: How many products to return (default 5).
-            country: Optional. If the user asks for a specific country, pass the FULL COUNTRY NAME here. 
+            country: Optional. If the user asks for a specific country, pass the FULL COUNTRY NAME here.
                      IMPORTANT: Translate abbreviations (e.g., 'FR' -> 'France', 'UK' -> 'United Kingdom').
         """
         data = self.df
-        
-        # אם ה-AI העביר לנו שם של מדינה, נסנן את הטבלה קודם כל לפי המדינה הזו
+
         if country:
             data = data[data['Country'].str.lower() == country.lower()]
             if data.empty:
                 return {"error": f"No sales data found for country: {country}"}
 
-        # עכשיו נחשב את הטופ מוצרים על הטבלה המסוננת (או המלאה אם לא התבקשה מדינה)
         return data.groupby('Description')['Revenue'].sum().nlargest(limit).to_dict()
+
     def get_refund_rate(self) -> float:
         """Calculates the percentage of transactions that were refunds or returns (negative quantity)."""
         total_transactions = len(self.df)
@@ -86,13 +79,13 @@ class SalesAnalyst:
         days = self.df['InvoiceDate'].dt.day_name()
         return days.value_counts().to_dict()
 
-    # --- רמה 3: קשה (Hard) ---
+    # --- Advanced time-series & business logic ---
 
     def get_mom_growth_rate(self) -> float:
         """Calculates the Month-over-Month (MoM) sales revenue growth rate percentage."""
         if 'InvoiceDate' not in self.df.columns: return 0.0
         monthly_rev = self.df.set_index('InvoiceDate').resample('ME')['Revenue'].sum()
-        growth = monthly_rev.pct_change() * 100 
+        growth = monthly_rev.pct_change() * 100
         return float(growth.iloc[-1]) if not pd.isna(growth.iloc[-1]) else 0.0
 
     def get_pareto_products_count(self) -> int:
@@ -127,7 +120,7 @@ class SalesAnalyst:
         forecast_next_7_days = last_14_days_avg * 7
         return float(forecast_next_7_days)
 
-    # --- פונקציות השלמה ל-15 (רמה: ניהול עסקי) ---
+    # --- Business strategy metrics ---
 
     def get_sales_trend(self) -> str:
         """Determines the current sales trend (Up, Down, or Stable) compared to the previous month."""
@@ -152,17 +145,18 @@ class SalesAnalyst:
         """Calculates statistics about repeat customers, including total count and retention rate percentage."""
         customer_counts = self.df.groupby('Customer ID')['Invoice'].nunique()
         repeat_customers = customer_counts[customer_counts > 1]
-        
+
         total_unique = self.df['Customer ID'].nunique()
         repeat_count = len(repeat_customers)
         percentage = (repeat_count / total_unique) * 100 if total_unique > 0 else 0
-        
+
         return {
             "repeat_customers_count": int(repeat_count),
             "repeat_customers_percentage": f"{percentage:.2f}%",
             "total_unique_customers": int(total_unique)
         }
-    # --- רמה 4: אסטרטגיה עסקית מתקדמת (Advanced Business Strategy) ---
+
+    # --- Advanced behavioral analytics ---
 
     def get_hourly_sales_distribution(self) -> dict:
         """Analyzes the distribution of sales by hour of the day to find peak shopping hours."""
@@ -181,13 +175,14 @@ class SalesAnalyst:
     def get_churn_risk_customers(self, days_inactive: int = 90) -> dict:
         """Identifies the number of customers who are at risk of churning (have not purchased in the last X days, default 90)."""
         if 'InvoiceDate' not in self.df.columns: return {"error": "No date data"}
-        # מציאת תאריך הרכישה האחרון של כל לקוח
+        # Find the most recent purchase date per customer
         last_purchase = self.df.groupby('Customer ID')['InvoiceDate'].max()
-        dataset_end_date = self.df['InvoiceDate'].max() # היום האחרון במסד הנתונים
-        
+        # Use the last date in the dataset as the reference point
+        dataset_end_date = self.df['InvoiceDate'].max()
+
         days_since_last_purchase = (dataset_end_date - last_purchase).dt.days
         at_risk = days_since_last_purchase[days_since_last_purchase >= days_inactive]
-        
+
         return {
             "total_customers": int(len(last_purchase)),
             "at_risk_customers": int(len(at_risk)),
@@ -198,26 +193,26 @@ class SalesAnalyst:
         """Calculates the percentage of total revenue that comes from the top 10% of customers to assess business risk (Whale dependence)."""
         customer_rev = self.df.groupby('Customer ID')['Revenue'].sum().sort_values(ascending=False)
         if customer_rev.empty: return "No customer data"
-        
+
         top_10_percent_count = max(1, int(len(customer_rev) * 0.10))
         top_10_rev = customer_rev.head(top_10_percent_count).sum()
         total_rev = customer_rev.sum()
-        
+
         concentration = (top_10_rev / total_rev) * 100
         return f"Risk Level: {concentration:.2f}% of our total revenue comes from just the top 10% of our customers."
 
     def get_average_days_between_purchases(self) -> float:
         """Calculates the average number of days a returning customer waits before making another purchase."""
         if 'InvoiceDate' not in self.df.columns: return 0.0
-        
-        # סינון לקוחות ללא זהות ומיון לפי לקוח ותאריך
+
+        # Sort by customer and date to compute time gaps
         sorted_df = self.df.dropna(subset=['Customer ID']).sort_values(['Customer ID', 'InvoiceDate'])
-        
-        # השארת הזמנות ייחודיות כדי למנוע חישוב של 0 ימים בין מוצרים שנקנו באותה הזמנה
+
+        # Keep one row per invoice to avoid counting 0-day gaps between items in the same order
         invoices = sorted_df.drop_duplicates(subset=['Customer ID', 'Invoice']).copy()
-        
+
         invoices['PrevPurchaseDate'] = invoices.groupby('Customer ID')['InvoiceDate'].shift(1)
         invoices['DaysBetween'] = (invoices['InvoiceDate'] - invoices['PrevPurchaseDate']).dt.days
-        
+
         avg_days = invoices['DaysBetween'].mean()
         return float(avg_days) if pd.notna(avg_days) else 0.0

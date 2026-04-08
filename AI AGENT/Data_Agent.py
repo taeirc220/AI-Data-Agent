@@ -6,20 +6,32 @@ class DataAgent:
         self.file_path = file_path
 
     def get_data(self):
-        """
-        טוען את הנתונים מהקובץ ומחזיר DataFrame של Pandas.
-        אם הקובץ לא נמצא או שיש שגיאה, מחזיר None.
-        """
+        """Loads the CSV, cleans it, and returns a ready-to-use DataFrame. Returns None on failure."""
         if not os.path.exists(self.file_path):
             print(f"[Data Agent] ❌ Error: File not found at {self.file_path}")
             return None
-        
+
         try:
-            # טעינה שקטה ללא הדפסות מיותרות
             df = pd.read_csv(self.file_path, encoding='ISO-8859-1')
+
+            rows_before = len(df)
+
+            # Drop duplicates
+            df.drop_duplicates(inplace=True)
+
+            # Drop rows without a customer ID — can't analyze anonymous transactions
+            df.dropna(subset=['Customer ID'], inplace=True)
+
+            # Drop rows without a product description
+            df.dropna(subset=['Description'], inplace=True)
+
+            # Drop rows with zero or negative price
+            df = df[df['Price'] > 0]
+
+            rows_after = len(df)
+            print(f"[Data Agent] 🧹 Cleaned data: {rows_before - rows_after} rows removed ({rows_after} remaining).")
+
             return df
         except Exception as e:
             print(f"[Data Agent] ❌ Error loading CSV: {e}")
             return None
-
-#
