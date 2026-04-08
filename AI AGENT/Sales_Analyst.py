@@ -2,16 +2,20 @@ import pandas as pd
 import numpy as np
 
 class SalesAnalyst:
-    def __init__(self, data_frame):
-        # יצירת עותק כדי לא לפגוע בנתונים המקוריים
+    def __init__(self, data_frame: pd.DataFrame):
+        """
+        Initializes the SalesAnalyst.
+        Prepares 'Revenue' and 'InvoiceDate' for advanced time-series analysis.
+        """
         self.df = data_frame.copy()
         
-        # 1. ניקוי בסיסי וחישוב הכנסה לכל שורה
-        self.df['Revenue'] = self.df['Quantity'] * self.df['Price']
+        # חישוב הכנסה בסיסי
+        if 'Quantity' in self.df.columns and 'Price' in self.df.columns:
+            self.df['Revenue'] = self.df['Quantity'] * self.df['Price']
         
-        # 2. המרת עמודת התאריך לפורמט תאריך חכם של פייתון (אם קיימת)
+        # המרת תאריכים
         if 'InvoiceDate' in self.df.columns:
-            self.df['InvoiceDate'] = pd.to_datetime(self.df['InvoiceDate'])
+            self.df['InvoiceDate'] = pd.to_datetime(self.df['InvoiceDate'], errors='coerce')
 
     # --- רמה 1: קל (Easy) ---
 

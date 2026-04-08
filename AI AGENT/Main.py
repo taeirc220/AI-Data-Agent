@@ -1,50 +1,65 @@
-# We import our Manager to handle the logic
+from Data_Agent import DataAgent
 from Manager import ManagerAgent
-from Data_Agent import DataAgent # הוספנו ייבוא של סוכן הנתונים לכאן
+import os
 
 def start_app():
     """
-    This function starts the interactive application loop.
+    מפעילה את אפליקציית סוכן ה-AI לניתוח נתוני ה-E-commerce.
     """
     print("=========================================")
-    print("🤖 Welcome to the AI Data Department 🤖")
+    print("🤖 AI E-commerce Data Department 🤖")
     print("=========================================")
     
-    # --- טעינת הנתונים פעם אחת בלבד! ---
-    print("⏳ Loading data into memory, please wait...")
-    d_agent = DataAgent("online_retail_small.csv")
+    # 1. טעינת הנתונים (Data Agent)
+    file_name = "online_retail_small.csv"
+    print(f"⏳ Loading data from {file_name}...")
+    
+    d_agent = DataAgent(file_name)
     df = d_agent.get_data()
     
     if df is None:
-        print("❌ CRITICAL ERROR: Could not load data. Shutting down.")
+        print("❌ CRITICAL ERROR: Could not load data. Please check the file path.")
         return
         
-    print(f"✅ Data loaded successfully! Found {len(df)} rows.")
-    print("Type 'exit' or 'quit' to close the app.\n")
-
-    # במקום להעביר למנהל את שם הקובץ, אנחנו מעבירים לו את הנתונים המוכנים (df)
+    print(f"✅ Data loaded! Found {len(df)} rows.")
+    
+    # 2. אתחול ה-ManagerAgent המשודרג
+    # כעת המנהל הוא סוכן אוטונומי מבוסס LangGraph
+    print("🧠 Initializing AI Manager Agent...")
     manager = ManagerAgent(df)
+    
+    print("\nSystem is ready! Type 'exit' to quit.")
+    print("Examples: 'Who is my top customer?', 'How are sales trending?', 'Hi, what can you do?'")
 
-    # The infinite loop that keeps the program running waiting for user input
+    # 3. לולאת השיחה (The Main Loop)
     while True:
-        # Prompt the user to type something
-        user_input = input("\n👤 You: ").strip()
+        try:
+            # קבלת קלט מהמשתמש
+            user_input = input("\n👤 You: ").strip()
 
-        # Check if the user wants to exit
-        if user_input.lower() in ['exit', 'quit', 'יציאה']:
-            print("👋 Shutting down the Data Department. Goodbye!")
+            # יציאה
+            if user_input.lower() in ['exit', 'quit', 'יציאה', 'ביי']:
+                print("👋 Goodbye! Shutting down the Data Department.")
+                break
+            
+            if not user_input:
+                continue
+
+            # שליחה למנהל וקבלת תשובה (הסוכן יחליט אם להפעיל כלים או לענות חופשי)
+            response = manager.handle_request(user_input)
+            
+            # הדפסת התשובה
+            print(f"\n👔 Manager: {response}")
+
+        except KeyboardInterrupt:
+            print("\n👋 System interrupted. Goodbye!")
             break
-        
-        # Prevent empty inputs
-        if not user_input:
-            continue
+        except Exception as e:
+            print(f"\n❌ An unexpected error occurred: {e}")
 
-        # Pass the input to the Manager and get the response
-        response = manager.handle_request(user_input)
-        
-        # Print the Manager's response
-        print(f"\n👔 {response}")
-
-# --- Application entry point ---
 if __name__ == "__main__":
+    # וודא שיש לך מפתח API מוגדר בסביבה או בקובץ .env
+    if not os.getenv("OPENAI_API_KEY"):
+        print("⚠️ Warning: OPENAI_API_KEY not found in environment variables!")
+    
     start_app()
