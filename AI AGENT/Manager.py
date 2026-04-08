@@ -2,8 +2,12 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# ייבוא הסוכנים שלנו
+# ייבוא ספריות LangChain
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_openai_functions_agent, AgentExecutor
+from langchain import hub
 
+# ייבוא הסוכנים שלנו
 from Sales_Analyst import SalesAnalyst
 from Product_Analyst import ProductAnalyst
 from Customer_Analyst import CustomerAnalyst
@@ -13,11 +17,45 @@ load_dotenv()
 class ManagerAgent:
     def __init__(self, df):
         self.df = df
-        self.ai_client = OpenAI()
-    
+        # הקליינט הישן עבור מחלקות המוצרים והלקוחות
+        self.ai_client = OpenAI() 
+        
+        # --- הגדרות LangChain למחלקת מכירות בלבד ---
+        self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        self.sales_analyst = SalesAnalyst(df)
+        
+        # רשימת כל הכלים (Tools) שהסוכן האוטונומי יכול להפעיל לבד
+        self.sales_tools = [
+            self.sales_analyst.get_total_revenue,
+            self.sales_analyst.get_total_orders,
+            self.sales_analyst.get_total_items_sold,
+            self.sales_analyst.get_average_order_value,
+            self.sales_analyst.get_top_countries_by_revenue,
+            self.sales_analyst.get_monthly_revenue,
+            self.sales_analyst.get_top_products_by_revenue,
+            self.sales_analyst.get_refund_rate,
+            self.sales_analyst.get_revenue_by_date_range,
+            self.sales_analyst.get_busiest_days_of_week,
+            self.sales_analyst.get_mom_growth_rate,
+            self.sales_analyst.get_pareto_products_count,
+            self.sales_analyst.get_sales_anomalies,
+            self.sales_analyst.get_frequently_bought_together,
+            self.sales_analyst.get_simple_sales_forecast,
+            self.sales_analyst.get_sales_trend,
+            self.sales_analyst.detect_revenue_drops,
+            self.sales_analyst.get_repeat_customers_stats
+        ]
+        
+        # הורדת תבנית הנחיות (Prompt) מוכנה של מנהל מסד הנתונים של LangChain
+        prompt = hub.pull("hwchase17/openai-functions-agent")
+        
+        # יצירת הסוכן האוטונומי והמבצע (Executor)
+        sales_agent = create_openai_functions_agent(self.llm, self.sales_tools, prompt)
+        self.sales_executor = AgentExecutor(agent=sales_agent, tools=self.sales_tools, verbose=True)
+
     def _translate_to_command(self, user_text):
         """
-        המוח של המנהל - מתרגם שפה חופשית לפקודות שהסוכנים מבינים
+        המוח של המנהל - מסווג את המחלקה (Sales/Product/Customer)
         """
         system_prompt = """
         You are the translation brain of a data system. Map the question to ONE command.
@@ -88,15 +126,11 @@ class ManagerAgent:
         request_type = self._translate_to_command(user_text)
         print(f"[Manager Agent] 🎯 AI determined command: '{request_type}'")
         
-        # טעינת הנתונים דרך ה-Data Agent
         df = self.df
-        
         if df is None:
             return "Sorry, I couldn't get the data from the Data Agent."
         
-        # --- לוגיקת ניתוב (Routing) ---
-        
-        # רשימות הפקודות המסודרות לפי מחלקות
+        # --- הגדרת מחלקות ---
         sales_commands = [
             "total_revenue", "total_orders", "total_items_sold", "average_order_value",
             "top_countries_revenue", "monthly_revenue", "top_products_revenue", 
@@ -117,63 +151,17 @@ class ManagerAgent:
             "high_value_loyal_customers", "customer_average_item_price"
         ]
 
-        # 1. מחלקת מכירות (Sales)
+        # 1. מחלקת מכירות (Sales) - מנוהל כעת באופן אוטונומי על ידי LangChain!
         if request_type in sales_commands:
-            print("[Manager Agent] 📞 Routing to Sales Analyst...")
-            analyst = SalesAnalyst(df)
-            
-            if request_type == "total_revenue":
-                res = analyst.get_total_revenue()
-                return f"💰 The total revenue is ${res:,.2f}."
-            elif request_type == "total_orders":
-                res = analyst.get_total_orders()
-                return f"📦 Total number of orders: {res}"
-            elif request_type == "average_order_value":
-                res = analyst.get_average_order_value()
-                return f"📊 The Average Order Value (AOV) is ${res:.2f}."
-            elif request_type == "total_items_sold":
-                res = analyst.get_total_items_sold()
-                return f"🛒 Total items sold: {res}"
-            elif request_type == "top_countries_revenue":
-                res = analyst.get_top_countries_by_revenue()
-                return f"🌍 Top countries by revenue: {res}"
-            elif request_type == "monthly_revenue":
-                res = analyst.get_monthly_revenue()
-                return f"📅 Monthly Revenue Breakdown: {res}"
-            elif request_type == "top_products_revenue":
-                res = analyst.get_top_products_by_revenue()
-                return f"🔝 Top products by revenue contribution: {res}"
-            elif request_type == "refund_rate":
-                res = analyst.get_refund_rate()
-                return f"⚠️ Our current refund rate is {res:.2f}%."
-            elif request_type == "busiest_days":
-                res = analyst.get_busiest_days_of_week()
-                return f"📈 Busiest days of the week: {res}"
-            elif request_type == "growth_rate":
-                res = analyst.get_mom_growth_rate()
-                return f"🚀 Month-over-Month Growth: {res:.2f}%"
-            elif request_type == "pareto_analysis":
-                res = analyst.get_pareto_products_count()
-                return f"⚖️ Pareto Analysis: {res} products are responsible for 80% of your total revenue."
-            elif request_type == "sales_anomalies":
-                res = analyst.get_sales_anomalies()
-                return f"🚨 Sales Anomalies Detected: {res if res else 'No major anomalies found.'}"
-            elif request_type == "sales_forecast":
-                res = analyst.get_simple_sales_forecast()
-                return f"🔮 Estimated sales forecast for the next 7 days: ${res:,.2f}"
-            elif request_type == "bought_together":
-                res = analyst.get_frequently_bought_together('WHITE HANGING HEART T-LIGHT HOLDER')
-                return f"💡 People who bought that also bought: {res}"
-            elif request_type == "sales_trend":
-                res = analyst.get_sales_trend()
-                return f"📈 Current Sales Trend: {res}"
-            elif request_type == "revenue_drops":
-                res = analyst.detect_revenue_drops()
-                if isinstance(res, str): 
-                    return res
-                return f"⚠️ Significant Revenue Drops Detected: {res}"
+            print("[Manager Agent] 🚀 Handing over to LangChain Autonomous Sales Agent...")
+            try:
+                # ה-AI בוחר את הכלים (הפונקציות) בעצמו ומרכיב את התשובה לבד
+                response = self.sales_executor.invoke({"input": user_text})
+                return response["output"]
+            except Exception as e:
+                return f"❌ LangChain Error: {e}"
 
-        # 2. מחלקת מוצרים (Products)
+        # 2. מחלקת מוצרים (Products) - פועל במצב קלאסי
         elif request_type in product_commands:
             print("[Manager Agent] 📞 Routing to Product Analyst...")
             analyst = ProductAnalyst(df)
@@ -208,7 +196,7 @@ class ManagerAgent:
                     return f"📉 Trend for '{example_product}': {analyst.get_product_sales_trend(example_product)}"
                 return f"🔄 Lifecycle Status for '{example_product}': {analyst.get_product_lifecycle_status(example_product)}"
 
-        # 3. מחלקת לקוחות (Customers)
+        # 3. מחלקת לקוחות (Customers) - פועל במצב קלאסי
         elif request_type in customer_commands:
             print("[Manager Agent] 📞 Routing to Customer Analyst...")
             analyst = CustomerAnalyst(df)
@@ -238,7 +226,7 @@ class ManagerAgent:
                 res = analyst.get_repeat_customers_stats()
                 return (f"🔄 Customer Loyalty Stats:\n"
                         f"- Repeat Customers: {res['repeat_customers_count']}\n"
-                        f"- Retention Rate: {res['repeat_customers_percentage']}%\n"
+                        f"- Retention Rate: {res['repeat_customers_percentage']}\n"
                         f"- Total Unique Customers: {res['total_unique_customers']}")
             elif request_type == "best_selling_product_per_country":
                 res = analyst.get_best_selling_product_per_country()
@@ -250,5 +238,4 @@ class ManagerAgent:
                 res = analyst.get_average_item_price()
                 return f"🏷️ The average item price is ${res}."
 
-        # במקרה שה-AI לא זיהה פקודה
         return "I'm not sure how to handle that request yet. Try asking about revenue, growth, or top products!"
