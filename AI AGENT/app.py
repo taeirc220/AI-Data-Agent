@@ -229,8 +229,12 @@ CHART_BASE = dict(
 
 
 # ── Load agents ─────────────────────────────────────────────────────────────────
+# Bump this string whenever Manager.py / analyst files change — forces Streamlit
+# to discard the cached ManagerAgent and rebuild from the current code.
+_AGENT_VERSION = "v3"
+
 @st.cache_resource(show_spinner=False)
-def load_agents():
+def load_agents(_version: str = _AGENT_VERSION):
     from Data_Agent import DataAgent
     from Manager import ManagerAgent
     from Sales_Analyst import SalesAnalyst
@@ -262,7 +266,7 @@ with st.sidebar:
     st.markdown("<hr>", unsafe_allow_html=True)
 
     with st.spinner("Initializing agents..."):
-        df, manager, sales = load_agents()
+        df, manager, sales = load_agents(_AGENT_VERSION)
 
     if df is None:
         st.error("Could not load data. Check that `online_retail_II.csv` is in the project folder.")
