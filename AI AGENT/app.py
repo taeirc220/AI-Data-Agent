@@ -116,10 +116,11 @@ st.markdown("""
     /* ── Suggestion buttons ── */
     .stButton > button {
         border-radius: 20px !important;
-        border: 1px solid #30363d !important;
-        background: #161b22 !important;
-        color: #8b949e !important;
+        border: 1px solid #484f58 !important;
+        background: #21262d !important;
+        color: #c9d1d9 !important;
         font-size: 12px !important;
+        font-weight: 500 !important;
         padding: 6px 14px !important;
         width: 100% !important;
         transition: all 0.15s ease !important;
@@ -127,26 +128,55 @@ st.markdown("""
     .stButton > button:hover {
         border-color: #1f6feb !important;
         color: #79c0ff !important;
-        background: rgba(31, 111, 235, 0.08) !important;
+        background: rgba(31, 111, 235, 0.12) !important;
     }
 
-    /* ── Chat messages ── */
+    /* ── Chat message bubbles ── */
     [data-testid="stChatMessage"] {
-        background: #161b22 !important;
-        border: 1px solid #21262d !important;
+        background: #1c2128 !important;
+        border: 1px solid #30363d !important;
         border-radius: 12px !important;
-        padding: 12px 16px !important;
-        margin-bottom: 8px !important;
+        padding: 14px 18px !important;
+        margin-bottom: 10px !important;
+    }
+    /* Force all text inside chat bubbles to be fully visible */
+    [data-testid="stChatMessage"] p,
+    [data-testid="stChatMessage"] li,
+    [data-testid="stChatMessage"] span,
+    [data-testid="stChatMessage"] div,
+    [data-testid="stChatMessage"] strong,
+    [data-testid="stChatMessage"] em,
+    [data-testid="stChatMessage"] code {
+        color: #e6edf3 !important;
+    }
+    /* User bubble: distinct blue tint */
+    [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+        background: #1a2d4a !important;
+        border-color: #1f6feb !important;
+    }
+    /* AI bubble: neutral dark card */
+    [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
+        background: #1c2128 !important;
+        border-color: #30363d !important;
+    }
+    /* Caption / agent badge */
+    [data-testid="stChatMessage"] .stCaption,
+    [data-testid="stChatMessage"] [data-testid="stCaptionContainer"] p {
+        color: #3fb950 !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.3px !important;
+        margin-bottom: 6px !important;
     }
 
     /* ── Chat input ── */
     [data-testid="stChatInput"] {
-        background-color: #0d1117 !important;
+        background-color: #161b22 !important;
         border: 1.5px solid #484f58 !important;
         border-radius: 14px !important;
     }
     [data-testid="stChatInput"] textarea {
-        background-color: #0d1117 !important;
+        background-color: #161b22 !important;
         border: none !important;
         color: #e6edf3 !important;
         border-radius: 14px !important;
