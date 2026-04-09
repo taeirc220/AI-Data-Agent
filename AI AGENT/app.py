@@ -235,7 +235,7 @@ def load_agents():
     from Manager import ManagerAgent
     from Sales_Analyst import SalesAnalyst
 
-    file_name = os.path.join(os.path.dirname(os.path.abspath(__file__)), "online_retail_small.csv")
+    file_name = os.path.join(os.path.dirname(os.path.abspath(__file__)), "online_retail_II.csv")
     d_agent = DataAgent(file_name)
     df = d_agent.get_data()
 
@@ -265,7 +265,7 @@ with st.sidebar:
         df, manager, sales = load_agents()
 
     if df is None:
-        st.error("Could not load data. Check that `online_retail_small.csv` is in the project folder.")
+        st.error("Could not load data. Check that `online_retail_II.csv` is in the project folder.")
         st.stop()
 
     st.markdown('<div class="section-label">Active Agents</div>', unsafe_allow_html=True)
@@ -289,7 +289,7 @@ with st.sidebar:
     st.markdown('<div class="section-label">Dataset</div>', unsafe_allow_html=True)
     st.markdown(f"""
     <div style="color: #8b949e; font-size: 12px; line-height: 2;">
-        📄 &nbsp;online_retail_small.csv<br>
+        📄 &nbsp;online_retail_II.csv<br>
         🗂 &nbsp;{len(df):,} records loaded<br>
         🌍 &nbsp;UK Online Retail
     </div>""", unsafe_allow_html=True)
