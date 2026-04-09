@@ -136,6 +136,7 @@ class ManagerAgent:
             self.customer_analyst.get_new_customers_by_month,
             self.customer_analyst.get_churn_risk_customer_list,
             self.customer_analyst.get_customer_orders,
+            self.customer_analyst.get_customer_product_quantity,
         ]
 
         customer_prompt = (

@@ -258,6 +258,44 @@ class CustomerAnalyst:
             })
         return result
 
+    def get_customer_product_quantity(self, customer_id: int, product_desc: str) -> dict:
+        """Returns how many units of a specific product a customer has purchased in total.
+        Use this when the user asks 'how many X did customer Y buy?' or 'how much of product X did customer Y order?'.
+        IMPORTANT: call search_products first if the product name might be approximate, then pass the exact description here.
+        Args:
+            customer_id: The numeric customer ID (e.g. 18102).
+            product_desc: The exact product description string from the dataset (case-insensitive match is applied).
+        """
+        try:
+            customer_id_f = float(customer_id)
+        except (ValueError, TypeError):
+            return {"error": f"Invalid customer ID: '{customer_id}'. Please provide a numeric ID."}
+
+        cdf = self.df[self.df['Customer ID'] == customer_id_f]
+        if cdf.empty:
+            return {"error": f"Customer ID {customer_id} not found in the dataset."}
+
+        product_rows = cdf[cdf['Description'].str.lower() == product_desc.lower()]
+        if product_rows.empty:
+            return {
+                "customer_id": customer_id,
+                "product": product_desc,
+                "total_units_bought": 0,
+                "note": "This customer has no recorded purchases of that product."
+            }
+
+        units_bought = int(product_rows[product_rows['Quantity'] > 0]['Quantity'].sum())
+        units_returned = int(abs(product_rows[product_rows['Quantity'] < 0]['Quantity'].sum()))
+        net_units = units_bought - units_returned
+
+        return {
+            "customer_id": customer_id,
+            "product": product_desc,
+            "total_units_bought": units_bought,
+            "total_units_returned": units_returned,
+            "net_units_kept": net_units,
+        }
+
     def get_revenue_by_single_country(self, country: str) -> dict:
         """Returns the total revenue for a single named country.
         Args:
