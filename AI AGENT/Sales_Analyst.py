@@ -22,8 +22,8 @@ class SalesAnalyst:
         return int(self.df['Invoice'].nunique())
 
     def get_total_items_sold(self) -> int:
-        """Calculates the total quantity of all physical items sold."""
-        return int(self.df['Quantity'].sum())
+        """Calculates the total quantity of all physical items sold, excluding returns and refunds."""
+        return int(self.df[self.df['Quantity'] > 0]['Quantity'].sum())
 
     def get_average_order_value(self) -> float:
         """Calculates the Average Order Value (AOV), which is total revenue divided by total orders."""
@@ -200,6 +200,19 @@ class SalesAnalyst:
 
         concentration = (top_10_rev / total_rev) * 100
         return f"Risk Level: {concentration:.2f}% of our total revenue comes from just the top 10% of our customers."
+
+    def search_products(self, query: str) -> list:
+        """Searches the product catalog for items whose description contains the query string.
+        ALWAYS call this first when the user refers to a product by a partial or approximate name,
+        before calling any other tool that requires an exact product description.
+        Returns up to 10 matching product descriptions (exact strings) from the dataset.
+        Args:
+            query: A partial product name or keyword (case-insensitive, e.g. 'heart candle').
+        """
+        if 'Description' not in self.df.columns:
+            return []
+        mask = self.df['Description'].str.contains(query, case=False, na=False)
+        return sorted(self.df[mask]['Description'].unique().tolist())[:10]
 
     def get_average_days_between_purchases(self) -> float:
         """Calculates the average number of days a returning customer waits before making another purchase."""

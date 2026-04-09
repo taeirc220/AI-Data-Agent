@@ -34,6 +34,9 @@ def start_app():
     print("\nType 'exit' to shut down.")
     print("─" * 44)
 
+    # Conversation history for the CLI session
+    history = []
+
     # Main conversation loop
     while True:
         try:
@@ -46,8 +49,12 @@ def start_app():
             if not user_input:
                 continue
 
-            response = manager.handle_request(user_input)
+            response = manager.handle_request(user_input, history=history)
             print(f"\n👔 Manager: {response}")
+
+            # Grow history after each successful exchange
+            history.append({"role": "user", "content": user_input})
+            history.append({"role": "assistant", "content": response})
 
         except KeyboardInterrupt:
             print("\nShutting down. Have a great day!")

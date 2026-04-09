@@ -73,8 +73,8 @@ class CustomerAnalyst:
 
     def get_repeat_customer_rate(self) -> float:
         """Calculates the percentage of customers who made more than one separate purchase (repeat buyers)."""
-        if 'InvoiceNo' not in self.df.columns: return 0.0
-        invoices_per_customer = self.df.groupby('Customer ID')['InvoiceNo'].nunique()
+        if 'Invoice' not in self.df.columns: return 0.0
+        invoices_per_customer = self.df.groupby('Customer ID')['Invoice'].nunique()
         repeat_customers = (invoices_per_customer > 1).sum()
         total_customers = invoices_per_customer.count()
         if total_customers == 0: return 0.0
@@ -90,8 +90,8 @@ class CustomerAnalyst:
 
     def get_average_order_value(self) -> float:
         """Calculates the Average Order Value (AOV) per invoice."""
-        if 'InvoiceNo' not in self.df.columns: return 0.0
-        revenue_per_invoice = self.df.groupby('InvoiceNo')['Revenue'].sum()
+        if 'Invoice' not in self.df.columns: return 0.0
+        revenue_per_invoice = self.df.groupby('Invoice')['Revenue'].sum()
         valid_invoices = revenue_per_invoice[revenue_per_invoice > 0]
         if valid_invoices.empty: return 0.0
         return float(round(valid_invoices.mean(), 2))
@@ -111,7 +111,7 @@ class CustomerAnalyst:
             return {"error": f"Customer ID {customer_id} not found in the dataset."}
 
         total_spend = round(float(cdf[cdf['Quantity'] > 0]['Revenue'].sum()), 2)
-        total_orders = int(cdf['InvoiceNo'].nunique()) if 'InvoiceNo' in cdf.columns else 0
+        total_orders = int(cdf['Invoice'].nunique()) if 'Invoice' in cdf.columns else 0
         total_items = int(cdf[cdf['Quantity'] > 0]['Quantity'].sum())
         refund_count = int((cdf['Quantity'] < 0).sum())
 
@@ -143,12 +143,25 @@ class CustomerAnalyst:
             "last_purchase": last_purchase,
         }
 
+    def search_products(self, query: str) -> list:
+        """Searches the product catalog for items whose description contains the query string.
+        ALWAYS call this first when the user refers to a product by a partial or approximate name,
+        before calling any other tool that requires an exact product description.
+        Returns up to 10 matching product descriptions (exact strings) from the dataset.
+        Args:
+            query: A partial product name or keyword (case-insensitive, e.g. 'heart candle').
+        """
+        if 'Description' not in self.df.columns:
+            return []
+        mask = self.df['Description'].str.contains(query, case=False, na=False)
+        return sorted(self.df[mask]['Description'].unique().tolist())[:10]
+
     def get_high_value_loyal_customers(self, order_threshold: int = 5, revenue_threshold: float = 1000.0) -> list:
         """Finds VIP loyal customers who have ordered more than the order_threshold AND spent over the revenue_threshold."""
-        if 'InvoiceNo' not in self.df.columns: return []
+        if 'Invoice' not in self.df.columns: return []
         customer_stats = self.df.groupby('Customer ID').agg(
             Total_Spend=('Revenue', 'sum'),
-            Total_Orders=('InvoiceNo', 'nunique')
+            Total_Orders=('Invoice', 'nunique')
         )
         vips = customer_stats[
             (customer_stats['Total_Orders'] >= order_threshold) &

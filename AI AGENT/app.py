@@ -486,7 +486,8 @@ with tab_chat:
         user_input = st.session_state.pop("pending_input")
         st.session_state.messages.append({"role": "user", "content": user_input})
         with st.spinner("Analyzing your data..."):
-            response = manager.handle_request(user_input)
+            # Pass all messages before the current one as history
+            response = manager.handle_request(user_input, history=st.session_state.messages[:-1])
         st.session_state.messages.append({"role": "assistant", "content": response, "agent": "AI Analyst"})
         st.rerun()
 
@@ -494,7 +495,8 @@ with tab_chat:
     if prompt := st.chat_input("Ask about your sales, products, or customers..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.spinner("Analyzing your data..."):
-            response = manager.handle_request(prompt)
+            # Pass all messages before the current one as history
+            response = manager.handle_request(prompt, history=st.session_state.messages[:-1])
         st.session_state.messages.append({"role": "assistant", "content": response, "agent": "AI Analyst"})
         st.rerun()
 

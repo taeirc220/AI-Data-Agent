@@ -74,6 +74,19 @@ class ProductAnalyst:
         freq = (self.df.groupby('Description')['Invoice'].nunique() / total_orders) * 100
         return freq.nlargest(10).to_dict()
 
+    def search_products(self, query: str) -> list:
+        """Searches the product catalog for items whose description contains the query string.
+        ALWAYS call this first when the user refers to a product by a partial or approximate name,
+        before calling any other tool that requires an exact product description.
+        Returns up to 10 matching product descriptions (exact strings) from the dataset.
+        Args:
+            query: A partial product name or keyword (case-insensitive, e.g. 'heart candle').
+        """
+        if 'Description' not in self.df.columns:
+            return []
+        mask = self.df['Description'].str.contains(query, case=False, na=False)
+        return sorted(self.df[mask]['Description'].unique().tolist())[:10]
+
     def get_product_lifecycle_status(self, product_desc: str) -> str:
         """Classifies a specific product's lifecycle status as Growing, Stable, or Declining. Requires the exact product name as input."""
         if 'InvoiceDate' not in self.df.columns: return "Unknown"
