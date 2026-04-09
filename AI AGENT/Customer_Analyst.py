@@ -105,7 +105,7 @@ class CustomerAnalyst:
         return monthly_trend.round(2).to_dict()
 
     def get_customer_profile(self, customer_id: int) -> dict:
-        """Returns a full profile for a specific customer ID: total spend, number of orders, items bought, favorite product, first and last purchase date, and refund count."""
+        """Returns a full profile for a specific customer ID: total spend, number of orders, items bought, favorite product, first and last purchase date, refund count, and country."""
         cdf = self.df[self.df['Customer ID'] == customer_id]
         if cdf.empty:
             return {"error": f"Customer ID {customer_id} not found in the dataset."}
@@ -129,8 +129,11 @@ class CustomerAnalyst:
                 first_purchase = str(dates.min().date())
                 last_purchase = str(dates.max().date())
 
+        country = str(cdf['Country'].mode()[0]) if 'Country' in cdf.columns and not cdf['Country'].empty else None
+
         return {
             "customer_id": customer_id,
+            "country": country,
             "total_spend_gbp": total_spend,
             "total_orders": total_orders,
             "total_items_bought": total_items,
