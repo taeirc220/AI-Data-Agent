@@ -1,3 +1,4 @@
+import base64
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -231,7 +232,7 @@ CHART_BASE = dict(
 # ── Load agents ─────────────────────────────────────────────────────────────────
 # Bump this string whenever Manager.py / analyst files change — forces Streamlit
 # to discard the cached ManagerAgent and rebuild from the current code.
-_AGENT_VERSION = "v3"
+_AGENT_VERSION = "v4"  # bump when Manager.py / analyst files change
 
 @st.cache_resource(show_spinner=False)
 def load_agents(_version: str = _AGENT_VERSION):
@@ -278,6 +279,7 @@ with st.sidebar:
         ("Alex", "Sales Analyst", "💼"),
         ("Dana", "Product Analyst", "📦"),
         ("Maya", "Customer Analyst", "👤"),
+        ("Aria", "General Analyst · Code", "🧠"),
     ]
     for name, role, icon in agents_info:
         st.markdown(f"""
@@ -482,33 +484,48 @@ with tab_chat:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
+    # ── Helper: render one assistant message (text + any saved charts) ─────────
+    def _render_assistant_msg(msg: dict) -> None:
+        with st.chat_message("assistant"):
+            st.caption("🤖 AI Analyst")
+            st.markdown(msg["content"])
+            for b64 in msg.get("charts", []):
+                img_bytes = base64.b64decode(b64)
+                st.image(img_bytes, use_container_width=True)
+
     # ── Chat history ──────────────────────────────────────────────────────────────
     for msg in st.session_state.messages:
         if msg["role"] == "user":
             with st.chat_message("user"):
                 st.write(msg["content"])
         else:
-            with st.chat_message("assistant"):
-                st.caption(f"🤖 AI Analyst")
-                st.markdown(msg["content"])
+            _render_assistant_msg(msg)
 
     # ── Handle suggestion click ───────────────────────────────────────────────────
     if "pending_input" in st.session_state:
         user_input = st.session_state.pop("pending_input")
         st.session_state.messages.append({"role": "user", "content": user_input})
-        with st.spinner("Analyzing your data..."):
-            # Pass all messages before the current one as history
-            response = manager.handle_request(user_input, history=st.session_state.messages[:-1])
-        st.session_state.messages.append({"role": "assistant", "content": response, "agent": "AI Analyst"})
+        with st.spinner("Analysing your data..."):
+            response = manager.handle_request(
+                user_input, history=st.session_state.messages[:-1]
+            )
+            charts = manager.get_pending_charts()
+        st.session_state.messages.append(
+            {"role": "assistant", "content": response, "agent": "AI Analyst", "charts": charts}
+        )
         st.rerun()
 
     # ── Chat input ────────────────────────────────────────────────────────────────
-    if prompt := st.chat_input("Ask about your sales, products, or customers..."):
+    if prompt := st.chat_input("Ask about your sales, products, customers, or request custom analysis..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.spinner("Analyzing your data..."):
-            # Pass all messages before the current one as history
-            response = manager.handle_request(prompt, history=st.session_state.messages[:-1])
-        st.session_state.messages.append({"role": "assistant", "content": response, "agent": "AI Analyst"})
+        with st.spinner("Analysing your data..."):
+            response = manager.handle_request(
+                prompt, history=st.session_state.messages[:-1]
+            )
+            charts = manager.get_pending_charts()
+        st.session_state.messages.append(
+            {"role": "assistant", "content": response, "agent": "AI Analyst", "charts": charts}
+        )
         st.rerun()
 
     # ── Clear button ──────────────────────────────────────────────────────────────

@@ -10,4 +10,6 @@ langgraph-prebuilt
 pandas
 plotly
 numpy
+matplotlib
+seaborn
 python-dotenv

@@ -1,188 +1,407 @@
+"""
+Manager.py — Orchestrates routing, sub-agent execution, and ReAct reasoning loops.
+
+Architecture:
+  User input
+    → _route_to_agent()          (gpt-4o-mini classifier)
+    → specialized ReAct agent    (sales / product / customer)
+       OR
+    → general ReAct agent        (code-execution-first, for cross-domain questions)
+    → response + pending charts
+
+Every agent has:
+  • Upgraded expert data analyst system prompt
+  • Schema context injected at init time
+  • execute_python tool (persistent sandbox, matplotlib chart capture)
+  • Domain-specific pre-computed tools
+  • ReAct Think→Act→Observe loop (max 25 iterations, auto error-retry)
+
+Charts are stored in CodeExecutor._charts; call manager.get_pending_charts()
+after handle_request() to retrieve base64 PNGs for display.
+"""
+
 import os
+import sys
+import logging
 import langchain
 from dotenv import load_dotenv
 from openai import OpenAI
 
-langchain.verbose = False
-langchain.debug = False
+import pandas as pd
 
-# LangChain / LangGraph
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
+from langchain_core.tools import tool as lc_tool
 
-# Our analyst classes
 from Sales_Analyst import SalesAnalyst
 from Product_Analyst import ProductAnalyst
 from Customer_Analyst import CustomerAnalyst
+from Code_Executor import CodeExecutor
 
 load_dotenv()
 
+# ---------------------------------------------------------------------------
+# Logging — console + rotating file for the full ReAct trace
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "react_trace.log"),
+            encoding="utf-8",
+        ),
+    ],
+)
+logger = logging.getLogger("ManagerAgent")
+
+langchain.verbose = False
+langchain.debug = False
+
+
+# ---------------------------------------------------------------------------
+# Schema context generator
+# ---------------------------------------------------------------------------
+
+def _generate_schema_context(df: pd.DataFrame) -> str:
+    """
+    Produce a rich, structured description of *df* for injection into system prompts.
+    Includes shape, column dtypes, null counts, and a 5-row sample.
+    """
+    if df is None:
+        return "\n[No dataset loaded]\n"
+
+    lines = [
+        "",
+        "=" * 60,
+        "DATASET SCHEMA & CONTEXT",
+        "=" * 60,
+        f"Table variable name : df",
+        f"Shape               : {len(df):,} rows × {len(df.columns)} columns",
+        "",
+        "── Columns ─────────────────────────────────────────────────",
+    ]
+
+    null_counts = df.isnull().sum()
+    for col in df.columns:
+        dtype = str(df[col].dtype)
+        nulls = int(null_counts[col])
+        null_pct = f"{nulls / len(df) * 100:.1f}%" if len(df) > 0 else "0%"
+        # Value hint for object/string columns
+        hint = ""
+        if df[col].dtype == object:
+            samples = df[col].dropna().unique()[:3]
+            hint = f"  e.g. {list(samples)}"
+        lines.append(f"  {col:<20} {dtype:<12} nulls={nulls} ({null_pct}){hint}")
+
+    lines += [
+        "",
+        "── Sample rows (first 5) ────────────────────────────────────",
+        df.head(5).to_string(index=False),
+        "=" * 60,
+        "",
+    ]
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Expert data analyst base prompt (shared methodology, injected into all agents)
+# ---------------------------------------------------------------------------
+
+_EXPERT_METHODOLOGY = """\
+
+You approach every question with the rigour of a senior data analyst:
+  1. Understand exactly what is being asked and what data is available.
+  2. Break complex questions into smaller, sequential sub-steps.
+  3. Use the pre-built domain tools when they give a direct answer.
+  4. For custom analysis, write clean pandas/numpy code via execute_python.
+  5. Validate results — scan for nulls, outliers, and unexpected values.
+  6. Summarise findings in plain English, highlighting key numbers.
+  7. Generate a chart automatically when it would clarify the answer.
+
+When execute_python returns an error:
+  • Read the traceback carefully, diagnose the root cause.
+  • Rewrite and retry up to 3 times with increasingly targeted fixes.
+  • After 3 failed attempts, explain what went wrong in plain English.
+
+For charts via execute_python:
+  • Use plt.style.use('seaborn-v0_8-whitegrid') (already set globally).
+  • Always add a title, axis labels, and call plt.tight_layout().
+  • Prefer seaborn for statistical plots (sns.barplot, sns.lineplot, etc.).
+  • Suggest the right chart type: bar for comparisons, line for trends,
+    scatter for correlations, heatmap for matrices.
+  • The chart is captured automatically — do NOT call plt.show() or plt.savefig().
+
+NEVER guess — always verify with data or code.
+"""
+
+
+# ---------------------------------------------------------------------------
+# ManagerAgent
+# ---------------------------------------------------------------------------
+
 class ManagerAgent:
-    def __init__(self, df):
+    def __init__(self, df: pd.DataFrame):
         self.df = df
-        # Used for the initial routing step only — mini is sufficient for classification
+
+        # Routing LLM — fast classifier only
         self.ai_client = OpenAI()
 
-        # Shared LLM for all ReAct sub-agents — gpt-4o for accurate multi-step reasoning
+        # Reasoning LLM — gpt-4o for all sub-agents
         self.llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
-        # --- Sales agent ---
-        self.sales_analyst = SalesAnalyst(df)
+        # Persistent code execution sandbox (shared across all agents in session)
+        self.executor = CodeExecutor(df)
 
+        # Schema context string (injected once into every system prompt)
+        self.schema_context = _generate_schema_context(df)
+
+        # Build execute_python tool (closure over self.executor)
+        execute_python = self._make_execute_python_tool()
+
+        # ── Sales agent ────────────────────────────────────────────────────────
+        # Kept: single-stat KPIs and simple rankings only.
+        # Everything trend/time-series/complex is handled by execute_python.
+        self.sales_analyst = SalesAnalyst(df)
         self.sales_tools = [
             self.sales_analyst.search_products,
             self.sales_analyst.get_total_revenue,
             self.sales_analyst.get_total_orders,
             self.sales_analyst.get_total_items_sold,
             self.sales_analyst.get_average_order_value,
-            self.sales_analyst.get_top_countries_by_revenue,
-            self.sales_analyst.get_monthly_revenue,
-            self.sales_analyst.get_top_products_by_revenue,
             self.sales_analyst.get_refund_rate,
-            self.sales_analyst.get_revenue_by_date_range,
-            self.sales_analyst.get_busiest_days_of_week,
-            self.sales_analyst.get_mom_growth_rate,
-            self.sales_analyst.get_pareto_products_count,
-            self.sales_analyst.get_sales_anomalies,
-            self.sales_analyst.get_frequently_bought_together,
-            self.sales_analyst.get_simple_sales_forecast,
-            self.sales_analyst.get_sales_trend,
-            self.sales_analyst.detect_revenue_drops,
-            self.sales_analyst.get_repeat_customers_stats,
-            self.sales_analyst.get_hourly_sales_distribution,
-            self.sales_analyst.get_weekend_vs_weekday_sales,
-            self.sales_analyst.get_churn_risk_customers,
-            self.sales_analyst.get_revenue_concentration_risk,
-            self.sales_analyst.get_average_days_between_purchases,
-            self.sales_analyst.get_product_family_revenue,
+            self.sales_analyst.get_top_countries_by_revenue,
+            self.sales_analyst.get_top_products_by_revenue,
+            execute_python,
         ]
 
         sales_prompt = (
-            "You are Alex, a sharp and friendly Sales Analyst for an e-commerce business. "
-            "Your job is to answer sales questions using the tools available to you. "
-            "RULES: "
-            "1. Always call the relevant tool first to get the real data before answering. "
-            "2. If the user mentions a product by name, call search_products first to find the exact "
-            "product description, then use that exact string in any follow-up tool calls. "
-            "3. Present numbers clearly — use bullet points, bold key figures, and add currency symbols (£) where relevant. "
-            "4. Only add a business insight if the data clearly supports one. Do NOT speculate or invent benchmarks. "
-            "   If the data is ambiguous or incomplete, say so honestly instead of guessing. "
-            "5. Keep a warm, professional tone — like a trusted analyst talking to a colleague. "
-            "6. Always respond in the same language the user wrote in (Hebrew or English). "
-            "7. If a question requires information not available in the dataset (e.g. cost data, profit margins, "
-            "   web traffic, marketing spend), clearly state that this data is not available rather than estimating."
+            "You are Alex, a Sales Analyst for an e-commerce business.\n\n"
+            "You answer simple, direct sales questions using your tools. "
+            "For anything that requires custom calculation, filtering, trends, "
+            "forecasting, or a chart, use execute_python to write pandas code.\n\n"
+            + self.schema_context
+            + "\nRULES:\n"
+            "1. Call a tool before answering — never guess.\n"
+            "2. If the user mentions a product by name, call search_products first.\n"
+            "3. Use £ for currency. Keep answers concise and factual.\n"
+            "4. If execute_python fails, diagnose the error and retry up to 3 times.\n"
+            "5. Respond in the same language the user wrote in (Hebrew or English).\n"
+            "6. If data is not in the dataset, say so clearly — do not estimate.\n"
         )
-        self.sales_executor = create_react_agent(self.llm, tools=self.sales_tools, prompt=sales_prompt)
+        self.sales_executor = create_react_agent(
+            self.llm, tools=self.sales_tools, prompt=sales_prompt
+        )
 
-        # --- Product agent ---
+        # ── Product agent ──────────────────────────────────────────────────────
+        # Kept: name search + simple per-product lookups + top rankings.
+        # Trends, return rates, growth, lifecycle → execute_python.
         self.product_analyst = ProductAnalyst(df)
-
         self.product_tools = [
             self.product_analyst.search_products,
             self.product_analyst.get_total_products_sold,
             self.product_analyst.get_product_revenue,
             self.product_analyst.get_average_price_per_product,
-            self.product_analyst.get_product_sales_trend,
             self.product_analyst.get_top_products_by_revenue,
             self.product_analyst.get_top_products_by_quantity,
-            self.product_analyst.get_product_return_rate,
-            self.product_analyst.get_product_revenue_share,
-            self.product_analyst.get_product_growth_rate,
-            self.product_analyst.get_product_popularity_score,
-            self.product_analyst.get_product_purchase_frequency,
-            self.product_analyst.get_product_lifecycle_status
+            execute_python,
         ]
 
         product_prompt = (
-            "You are Dana, a friendly and detail-oriented Product Analyst for an e-commerce business. "
-            "Your job is to answer product-related questions using the tools available to you. "
-            "RULES: "
-            "1. Always call the relevant tool first to get the real data before answering. "
-            "2. If the user mentions a product by name, call search_products first to find the exact "
-            "product description, then use that exact string in any follow-up tool calls. "
-            "   If multiple matches are found, list them and ask the user to clarify rather than silently picking one. "
-            "3. Present product data in a clean, readable format — use bullet points and highlight top performers. "
-            "4. Only add a business insight if the data clearly supports one. Do NOT speculate or invent benchmarks. "
-            "   If the data is ambiguous or incomplete, say so honestly instead of guessing. "
-            "5. Keep a warm, professional tone — like a trusted analyst talking to a colleague. "
-            "6. Always respond in the same language the user wrote in (Hebrew or English). "
-            "7. If a question requires information not available in the dataset (e.g. inventory, cost, supplier data), "
-            "   clearly state that this data is not available rather than estimating."
+            "You are Dana, a Product Analyst for an e-commerce business.\n\n"
+            "You answer simple, direct product questions using your tools. "
+            "For anything that requires trends, return rates, growth analysis, "
+            "lifecycle scoring, or a chart, use execute_python to write pandas code.\n\n"
+            + self.schema_context
+            + "\nRULES:\n"
+            "1. Call a tool before answering — never guess.\n"
+            "2. If the user mentions a product by name, call search_products first. "
+            "   If multiple matches are found, list them and ask for clarification.\n"
+            "3. If execute_python fails, diagnose the error and retry up to 3 times.\n"
+            "4. Respond in the same language the user wrote in (Hebrew or English).\n"
+            "5. If data is not in the dataset (inventory, cost, suppliers), say so clearly.\n"
         )
-        self.product_executor = create_react_agent(self.llm, tools=self.product_tools, prompt=product_prompt)
+        self.product_executor = create_react_agent(
+            self.llm, tools=self.product_tools, prompt=product_prompt
+        )
 
-        # --- Customer agent ---
+        # ── Customer agent ─────────────────────────────────────────────────────
+        # Kept: unique counts, top-N lookups, and direct per-customer ID lookups.
+        # Segmentation, cohorts, churn lists, country breakdowns → execute_python.
         self.customer_analyst = CustomerAnalyst(df)
-
         self.customer_tools = [
             self.customer_analyst.search_products,
-            self.customer_analyst.get_total_revenue,
             self.customer_analyst.get_total_unique_customers,
-            self.customer_analyst.get_top_country,
-            self.customer_analyst.get_total_items_sold,
-            self.customer_analyst.get_average_item_price,
             self.customer_analyst.get_top_customer,
             self.customer_analyst.get_top_spending_customers,
-            self.customer_analyst.get_revenue_by_country,
-            self.customer_analyst.get_revenue_by_single_country,
-            self.customer_analyst.get_most_popular_product,
-            self.customer_analyst.get_refund_rate,
             self.customer_analyst.get_repeat_customer_rate,
-            self.customer_analyst.get_best_selling_product_per_country,
-            self.customer_analyst.get_average_order_value,
-            self.customer_analyst.get_monthly_revenue_trend,
-            self.customer_analyst.get_high_value_loyal_customers,
             self.customer_analyst.get_customer_profile,
-            self.customer_analyst.get_new_customers_by_month,
-            self.customer_analyst.get_churn_risk_customer_list,
             self.customer_analyst.get_customer_orders,
             self.customer_analyst.get_customer_product_quantity,
+            execute_python,
         ]
 
         customer_prompt = (
-            "You are Maya, a warm and insightful Customer Analyst for an e-commerce business. "
-            "Your job is to answer customer-related questions using the tools available to you. "
-            "RULES: "
-            "1. Always call the relevant tool first to get the real data before answering. "
-            "2. If the user mentions a product by name, call search_products first to find the exact "
-            "product description, then use that exact string in any follow-up tool calls. "
-            "3. Present customer data clearly — use bullet points, highlight key customer IDs or countries. "
-            "4. Only add a behavioral insight if the data clearly supports one. Do NOT speculate about why a customer "
-            "   stopped buying, changed habits, or churned — the dataset does not contain that information. "
-            "5. Keep a warm, professional tone — like a trusted analyst talking to a colleague. "
-            "6. Always respond in the same language the user wrote in (Hebrew or English). "
-            "7. If a question requires information not available in the dataset (e.g. customer names, contact info, "
-            "   churn reasons, satisfaction scores), clearly state it is unavailable."
+            "You are Maya, a Customer Analyst for an e-commerce business.\n\n"
+            "You answer simple, direct customer questions using your tools. "
+            "For segmentation, cohort analysis, churn lists, country breakdowns, "
+            "or any chart, use execute_python to write pandas code.\n\n"
+            + self.schema_context
+            + "\nRULES:\n"
+            "1. Call a tool before answering — never guess.\n"
+            "2. For questions that include a customer ID number, call get_customer_profile first.\n"
+            "3. If execute_python fails, diagnose the error and retry up to 3 times.\n"
+            "4. Do NOT speculate about why a customer churned — the dataset does not contain that.\n"
+            "5. Respond in the same language the user wrote in (Hebrew or English).\n"
+            "6. If data is not in the dataset (names, contact info, satisfaction), say so clearly.\n"
         )
-        self.customer_executor = create_react_agent(self.llm, tools=self.customer_tools, prompt=customer_prompt)
+        self.customer_executor = create_react_agent(
+            self.llm, tools=self.customer_tools, prompt=customer_prompt
+        )
+
+        # ── General / cross-domain agent ───────────────────────────────────────
+        # execute_python is the primary tool. A handful of pre-built tools remain
+        # as shortcuts for the most common single-stat lookups.
+        general_tools = [
+            execute_python,
+            self.sales_analyst.search_products,
+            self.sales_analyst.get_total_revenue,
+            self.sales_analyst.get_top_products_by_revenue,
+            self.customer_analyst.get_customer_profile,
+        ]
+
+        general_prompt = (
+            "You are an expert data analyst with deep knowledge of Python, pandas, SQL, "
+            "and statistics. You answer cross-domain questions that span sales, products, "
+            "and customers.\n\n"
+            + _EXPERT_METHODOLOGY
+            + self.schema_context
+            + "\nRULES:\n"
+            "1. Use execute_python for all custom analysis — write clean, efficient pandas code.\n"
+            "2. Decompose complex questions into smaller sub-steps and solve them sequentially.\n"
+            "3. If execute_python fails, diagnose the error and retry up to 3 times.\n"
+            "4. Respond in the same language the user wrote in (Hebrew or English).\n"
+            "5. Always summarise findings in plain English after showing the numbers.\n"
+        )
+        self.general_executor = create_react_agent(
+            self.llm, tools=general_tools, prompt=general_prompt
+        )
+
+        logger.info(
+            "[ManagerAgent] Initialised | df=%s | schema_context_len=%d chars",
+            df.shape if df is not None else "None",
+            len(self.schema_context),
+        )
+
+    # ------------------------------------------------------------------
+    # execute_python tool factory
+    # ------------------------------------------------------------------
+
+    def _make_execute_python_tool(self):
+        """Return a LangChain @tool that executes code in self.executor."""
+        executor = self.executor  # closure capture
+
+        @lc_tool
+        def execute_python(code: str) -> str:
+            """
+            Execute Python code to analyse the retail dataset and return results.
+
+            Use this tool for:
+            - Custom aggregations and statistics not covered by built-in tools
+            - Multi-step calculations (e.g. cohort analysis, custom segmentation)
+            - Generating matplotlib / seaborn charts (captured automatically)
+            - Inspecting data structure (df.dtypes, df.head(), df.describe())
+
+            Execution environment:
+            - df      : cleaned retail DataFrame (Invoice, StockCode, Description,
+                        Quantity, InvoiceDate, Price, Customer ID, Country)
+            - pd      : pandas
+            - np      : numpy
+            - plt     : matplotlib.pyplot  (seaborn-v0_8-whitegrid style pre-applied)
+            - sns     : seaborn
+
+            Variables **persist** across calls in the same conversation session.
+            Always use print() to display results — bare expressions are not shown.
+
+            For charts:
+            - Add a descriptive title (plt.title(...))
+            - Label both axes (plt.xlabel, plt.ylabel)
+            - Call plt.tight_layout() at the end
+            - Do NOT call plt.show() or plt.savefig() — the chart is auto-captured
+
+            Args:
+                code: Valid Python code string to execute
+
+            Returns:
+                Printed stdout output, or an error message with traceback for debugging
+            """
+            result = executor.execute(code)
+
+            if result["error"]:
+                return (
+                    f"EXECUTION ERROR (diagnose and fix before retrying):\n"
+                    f"{result['error']}\n"
+                    f"[Execution took {result['duration_ms']} ms]"
+                )
+
+            output = result["output"] or "(code ran successfully — use print() to see results)"
+
+            if result["charts"]:
+                n = len(result["charts"])
+                output += (
+                    f"\n\n[{n} visualisation(s) generated — "
+                    f"they will be displayed below the response in the UI]"
+                )
+
+            output += f"\n[Execution: {result['duration_ms']} ms]"
+            return output
+
+        return execute_python
+
+    # ------------------------------------------------------------------
+    # Chart retrieval (called by the UI after handle_request)
+    # ------------------------------------------------------------------
+
+    def get_pending_charts(self) -> list[str]:
+        """
+        Return all base64 PNG charts generated during the last handle_request() call,
+        then clear the buffer.  Call this immediately after handle_request().
+        """
+        return self.executor.get_pending_charts()
+
+    # ------------------------------------------------------------------
+    # Routing
+    # ------------------------------------------------------------------
 
     def _route_to_agent(self, user_text: str, history: list = None) -> str:
-        """Classifies the user's question into one of four buckets: sales, product, customer, or general.
-        Accepts recent history so pronouns and follow-up questions are resolved in context."""
+        """
+        Classify the user's question into: sales | product | customer | general.
+        Uses conversation history to resolve pronouns and follow-ups.
+        """
         system_prompt = (
             "You are a routing assistant for a retail analytics system. "
             "Classify the question into EXACTLY ONE of these four categories:\n\n"
-            "- sales: revenue totals, order counts, trends, forecasts, growth rates, refund rates, "
-            "anomalies, busiest days, peak hours, weekend vs weekday, month-over-month comparisons, "
-            "date-range queries, Pareto analysis, basket/cross-sell analysis\n"
+            "- sales: revenue totals, order counts, trends, forecasts, growth rates, "
+            "refund rates, anomalies, busiest days, peak hours, weekend vs weekday, "
+            "month-over-month comparisons, date-range queries, Pareto analysis, "
+            "basket/cross-sell analysis\n"
             "- product: specific product performance — what sells most, revenue per item, "
-            "return rates per product, product trends, lifecycle status, popularity scores, price analysis\n"
+            "return rates per product, product trends, lifecycle status, popularity scores, "
+            "price analysis\n"
             "- customer: buyer behaviour — top spenders, customer profiles by ID, loyalty, "
             "repeat purchase rates, country breakdowns, VIP segments, churn risk, "
-            "ANY question that contains a specific customer ID number (e.g. 'customer 18102', "
-            "'ID 12345'), order history for a customer, highest/largest/biggest purchase by a customer, "
-            "spending patterns for a specific customer, when did customer X first/last buy\n"
-            "- general: questions that clearly span multiple domains, require joining insights from "
-            "sales + products + customers together, or do not fit the above\n\n"
-            "IMPORTANT: The user may ask short follow-up questions using pronouns like 'him', 'her', "
-            "'it', 'them', 'that product', 'this customer', or 'tell me more'. "
-            "Use the conversation history provided to understand what they are referring to, "
-            "then classify based on the full context — not just the current message alone.\n\n"
+            "ANY question containing a specific customer ID number (e.g. 'customer 18102', "
+            "'ID 12345'), order history for a customer, spending by a specific customer\n"
+            "- general: questions that clearly span multiple domains, require joining "
+            "sales + products + customers, involve custom code/analysis, or do not fit above\n\n"
+            "IMPORTANT: The user may ask short follow-up questions using pronouns. "
+            "Use the conversation history to understand context, then classify based on "
+            "the full intent — not just the current message.\n\n"
             "RULE: If the question mentions a numeric customer ID, ALWAYS classify as 'customer'.\n\n"
             "Reply with ONLY one word: sales, product, customer, or general."
         )
 
-        # Build the messages list: inject last 4 history messages for context, then the current question
         messages = [{"role": "system", "content": system_prompt}]
         if history:
             for msg in history[-4:]:
@@ -194,95 +413,97 @@ class ManagerAgent:
             response = self.ai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                temperature=0.0
+                temperature=0.0,
             )
             result = response.choices[0].message.content.strip().lower()
-            return result if result in ("sales", "product", "customer", "general") else "general"
+            bucket = result if result in ("sales", "product", "customer", "general") else "general"
+            logger.info("[ManagerAgent] Routed '%s' → %s", user_text[:60], bucket)
+            return bucket
         except Exception as e:
-            print(f"[Manager Agent] ❌ Routing Error: {e}")
+            logger.error("[ManagerAgent] Routing error: %s", e)
             return "general"
 
+    # ------------------------------------------------------------------
+    # Message building
+    # ------------------------------------------------------------------
+
     def _build_messages(self, user_text: str, history: list) -> list:
-        """Converts chat history + current message into LangGraph's tuple message format.
-        Caps history at the last 10 messages (5 exchanges) to keep token cost bounded."""
+        """
+        Convert chat history + current message into LangGraph tuple format.
+        Caps history at the last 10 messages (5 exchanges) to bound token cost.
+        """
         messages = []
         if history:
-            recent = history[-10:]
-            for msg in recent:
+            for msg in history[-10:]:
                 role = "human" if msg["role"] == "user" else "assistant"
                 messages.append((role, msg["content"]))
         messages.append(("human", user_text))
         return messages
 
+    # ------------------------------------------------------------------
+    # Main entry point
+    # ------------------------------------------------------------------
+
     def handle_request(self, user_text: str, history: list = None) -> str:
-        print(f"\n[Manager Agent] 🧠 Analyzing request: '{user_text}'")
-        agent_bucket = self._route_to_agent(user_text, history or [])
-        print(f"[Manager Agent] 🎯 Routing to: '{agent_bucket}' agent")
+        logger.info("[ManagerAgent] Incoming request: %r", user_text[:100])
 
         if self.df is None:
-            return "Hmm, it looks like I'm having trouble accessing the data right now. Please check that the data file is loaded correctly and try again."
+            return (
+                "I'm having trouble accessing the data right now. "
+                "Please check that the data file is loaded correctly and try again."
+            )
 
+        agent_bucket = self._route_to_agent(user_text, history or [])
         messages = self._build_messages(user_text, history or [])
 
-        if agent_bucket == "sales":
-            print("[Manager Agent] 🚀 Handing over to Sales Agent (Alex)...")
-            try:
-                response = self.sales_executor.invoke({"messages": messages})
-                return response["messages"][-1].content
-            except Exception as e:
-                print(f"[Manager Agent] ❌ Sales agent error: {e}")
-                return "I ran into an issue while pulling the sales data. Please try rephrasing your question or try again in a moment."
+        # ReAct recursion limit: 25 graph steps ≈ ~10-12 tool calls
+        invoke_config = {"recursion_limit": 30}
 
-        elif agent_bucket == "product":
-            print("[Manager Agent] 🚀 Handing over to Product Agent (Dana)...")
-            try:
-                response = self.product_executor.invoke({"messages": messages})
-                return response["messages"][-1].content
-            except Exception as e:
-                print(f"[Manager Agent] ❌ Product agent error: {e}")
-                return "I ran into an issue while analyzing the product data. Please try rephrasing your question or try again in a moment."
+        executor_map = {
+            "sales":    (self.sales_executor,    "Sales Agent (Alex)"),
+            "product":  (self.product_executor,  "Product Agent (Dana)"),
+            "customer": (self.customer_executor, "Customer Agent (Maya)"),
+            "general":  (self.general_executor,  "General Agent"),
+        }
 
-        elif agent_bucket == "customer":
-            print("[Manager Agent] 🚀 Handing over to Customer Agent (Maya)...")
-            try:
-                response = self.customer_executor.invoke({"messages": messages})
-                return response["messages"][-1].content
-            except Exception as e:
-                print(f"[Manager Agent] ❌ Customer agent error: {e}")
-                return "I ran into an issue while looking up the customer data. Please try rephrasing your question or try again in a moment."
+        agent_executor, agent_label = executor_map.get(
+            agent_bucket, (self.general_executor, "General Agent")
+        )
 
-        else:
-            # General / cross-domain: let the pandas agent handle it freely
-            print("[Manager Agent] 🔀 Cross-domain question — routing to General Agent...")
-            try:
-                from langchain_experimental.agents import create_pandas_dataframe_agent
+        logger.info("[ManagerAgent] Invoking %s", agent_label)
 
-                pandas_agent = create_pandas_dataframe_agent(
-                    self.llm,
-                    self.df,
-                    verbose=False,
-                    allow_dangerous_code=True
+        try:
+            response = agent_executor.invoke(
+                {"messages": messages}, invoke_config
+            )
+            answer = response["messages"][-1].content
+            logger.info("[ManagerAgent] %s responded (%d chars)", agent_label, len(answer))
+            return answer
+
+        except Exception as e:
+            error_msg = str(e).lower()
+            logger.error("[ManagerAgent] %s error: %s", agent_label, e)
+
+            if "quota" in error_msg or "rate" in error_msg:
+                return "I'm temporarily rate-limited. Please wait a moment and try again."
+            if "recursion" in error_msg:
+                return (
+                    "This question required too many reasoning steps to answer reliably. "
+                    "Try breaking it into smaller, more specific questions."
+                )
+            if "column" in error_msg or "key" in error_msg or "attribute" in error_msg:
+                return (
+                    "I ran into a data structure issue. "
+                    "The dataset may not contain the required fields — try rephrasing."
                 )
 
-                # Inject recent history as a structured prefix so the agent has context
-                context_lines = []
-                if history:
-                    for msg in (history or [])[-6:]:
-                        role = "User" if msg["role"] == "user" else "Assistant"
-                        context_lines.append(f"{role}: {msg['content']}")
-                context_lines.append(f"User: {user_text}")
-                full_input = "\n".join(context_lines)
-
-                response = pandas_agent.invoke({"input": full_input})
-                return response['output']
-
-            except KeyError:
-                return "I couldn't compute that — the data doesn't seem to contain the columns needed for this question. Could you rephrase or be more specific?"
-            except Exception as e:
-                error_msg = str(e).lower()
-                if "quota" in error_msg or "rate" in error_msg:
-                    return "I'm temporarily rate-limited. Please wait a moment and try again."
-                if "column" in error_msg or "key" in error_msg or "attribute" in error_msg:
-                    return "I ran into a data structure issue with that question. The dataset may not contain the required fields. Try rephrasing."
-                print(f"[Manager Agent] ❌ General agent error: {e}")
-                return "I ran into an unexpected error processing that question. Please try rephrasing or breaking it into smaller parts."
+            bucket_errors = {
+                "sales":    "I ran into an issue while pulling sales data.",
+                "product":  "I ran into an issue while analysing product data.",
+                "customer": "I ran into an issue while looking up customer data.",
+                "general":  "I ran into an unexpected error processing that question.",
+            }
+            return (
+                bucket_errors.get(agent_bucket, "An unexpected error occurred.")
+                + " Please try rephrasing or breaking it into smaller parts."
+            )
