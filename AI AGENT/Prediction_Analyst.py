@@ -23,6 +23,10 @@ class PredictionAnalyst:
         # Reference date: last date in the dataset (used for all "days since" calculations)
         self._reference_date = self.df["InvoiceDate"].max()
 
+        # Pre-computed flags used by multiple methods
+        self._has_valid_dates = pd.notna(self._reference_date)
+        self._has_revenue = "Revenue" in self.df.columns
+
     # ──────────────────────────────────────────────────────────────────────────
     # Churn risk
     # ──────────────────────────────────────────────────────────────────────────
@@ -36,6 +40,8 @@ class PredictionAnalyst:
         """
         if "InvoiceDate" not in self.df.columns:
             return {"error": "No date data available."}
+        if not self._has_valid_dates:
+            return {"error": "No valid InvoiceDate values found. All dates are missing or corrupt."}
 
         last_purchase = self.df.groupby("Customer ID")["InvoiceDate"].max()
         days_since = (self._reference_date - last_purchase).dt.days
@@ -64,6 +70,8 @@ class PredictionAnalyst:
         """
         if "InvoiceDate" not in self.df.columns:
             return [{"error": "No date data available."}]
+        if not self._has_valid_dates:
+            return [{"error": "No valid InvoiceDate values found. All dates are missing or corrupt."}]
         top_n = min(top_n, 50)
 
         last_purchase = self.df.groupby("Customer ID")["InvoiceDate"].max()
@@ -96,6 +104,10 @@ class PredictionAnalyst:
         """
         if "InvoiceDate" not in self.df.columns:
             return {"error": "No date data available."}
+        if not self._has_revenue:
+            return {"error": "Revenue could not be computed. Ensure both 'Price' and 'Quantity' columns exist in the dataset."}
+        if not self._has_valid_dates:
+            return {"error": "No valid InvoiceDate values found. All dates are missing or corrupt."}
         horizon_months = min(horizon_months, 12)
 
         sales_df = self.df[self.df["Quantity"] > 0].copy()
@@ -206,6 +218,10 @@ class PredictionAnalyst:
             lookback_months: How many recent months to compare (default 3, max 6).
             top_n: How many products to return (default 5, max 20).
         """
+        if not self._has_revenue:
+            return [{"error": "Revenue could not be computed. Ensure both 'Price' and 'Quantity' columns exist in the dataset."}]
+        if not self._has_valid_dates:
+            return [{"error": "No valid InvoiceDate values found. All dates are missing or corrupt."}]
         lookback_months = min(lookback_months, 6)
         top_n = min(top_n, 20)
 
@@ -245,6 +261,10 @@ class PredictionAnalyst:
             lookback_months: How many recent months to compare (default 3, max 6).
             top_n: How many products to return (default 10, max 20).
         """
+        if not self._has_revenue:
+            return [{"error": "Revenue could not be computed. Ensure both 'Price' and 'Quantity' columns exist in the dataset."}]
+        if not self._has_valid_dates:
+            return [{"error": "No valid InvoiceDate values found. All dates are missing or corrupt."}]
         lookback_months = min(lookback_months, 6)
         top_n = min(top_n, 20)
 
@@ -332,11 +352,23 @@ class PredictionAnalyst:
         first_purchase = cdf["InvoiceDate"].min()
         last_purchase = cdf["InvoiceDate"].max()
         active_days = (last_purchase - first_purchase).days
+        insufficient_history = total_orders == 1 or active_days == 0
         active_months = max(active_days / 30.0, 1.0)
 
         purchases_per_month = total_orders / active_months
         projected_orders = purchases_per_month * projection_months
         projected_clv = aov * projected_orders
+
+        note = (
+            f"Projected CLV assumes the customer continues buying at their historical rate "
+            f"for the next {projection_months} months. Does not account for churn probability."
+        )
+        if insufficient_history:
+            note += (
+                " WARNING: This customer has only 1 recorded order or all purchases on the same day. "
+                "Purchase frequency cannot be reliably estimated from a single data point — "
+                "treat this projection as a rough upper bound, not a reliable forecast."
+            )
 
         return {
             "customer_id": customer_id,
@@ -348,10 +380,8 @@ class PredictionAnalyst:
             "projection_horizon_months": projection_months,
             "projected_orders": round(projected_orders, 1),
             "projected_clv_gbp": round(projected_clv, 2),
-            "note": (
-                f"Projected CLV assumes the customer continues buying at their historical rate "
-                f"for the next {projection_months} months. Does not account for churn probability."
-            ),
+            "insufficient_history": insufficient_history,
+            "note": note,
         }
 
     # ──────────────────────────────────────────────────────────────────────────
