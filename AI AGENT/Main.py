@@ -9,7 +9,7 @@ def start_app():
     print("╚══════════════════════════════════════════╝")
 
     # Load the data
-    file_name = "online_retail_II.csv"
+    file_name = "online_retail_small.csv"
     print(f"\nLoading your data, just a moment...")
 
     d_agent = DataAgent(file_name)
