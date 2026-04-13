@@ -232,7 +232,7 @@ CHART_BASE = dict(
 # ── Load agents ─────────────────────────────────────────────────────────────────
 # Bump this string whenever Manager.py / analyst files change — forces Streamlit
 # to discard the cached ManagerAgent and rebuild from the current code.
-_AGENT_VERSION = "v4"  # bump when Manager.py / analyst files change
+_AGENT_VERSION = "v5"  # bump when Manager.py / analyst files change
 
 @st.cache_resource(show_spinner=False)
 def load_agents(_version: str = _AGENT_VERSION):
