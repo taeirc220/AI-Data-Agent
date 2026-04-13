@@ -68,3 +68,35 @@
 2026-04-12 10:39:06,525 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 2026-04-12 10:39:26,045 [INFO] ManagerAgent: [ManagerAgent] Initialised | df=(797815, 8) | schema_context_len=1530 chars
 2026-04-12 10:41:29,748 [WARNING] CodeExecutor: [CodeExecutor] TimeoutError: code execution exceeded 120s and was terminated. | code_preview='# Retry with optimized code to calculate the top 3 countries by number of orders...'
+2026-04-13 20:25:13,103 [INFO] ManagerAgent: [ManagerAgent] Initialised | df=(200, 8) | schema_context_len=1526 chars
+2026-04-13 20:25:23,571 [INFO] ManagerAgent: [ManagerAgent] Incoming request: 'top product'
+2026-04-13 20:25:25,118 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:25:25,157 [INFO] ManagerAgent: [ManagerAgent] Routed 'top product' → product
+2026-04-13 20:25:25,157 [INFO] ManagerAgent: [ManagerAgent] Invoking Product Agent (Dana)
+2026-04-13 20:25:26,754 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:25:28,594 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:25:28,598 [INFO] ManagerAgent: [ManagerAgent] Product Agent (Dana) responded (179 chars)
+2026-04-13 20:25:43,684 [INFO] ManagerAgent: [ManagerAgent] Incoming request: 'How many sold on Sundays'
+2026-04-13 20:25:45,182 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:25:45,184 [INFO] ManagerAgent: [ManagerAgent] Routed 'How many sold on Sundays' → sales
+2026-04-13 20:25:45,185 [INFO] ManagerAgent: [ManagerAgent] Invoking Sales Agent (Alex)
+2026-04-13 20:25:47,025 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:25:50,241 [INFO] CodeExecutor: [CodeExecutor] success=True | 3109 ms | 0 chart(s) | code_preview='# Filter the dataset for sales made on Sundays and calculate the total quantity ...' | error=none
+2026-04-13 20:25:53,066 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:25:53,068 [INFO] ManagerAgent: [ManagerAgent] Sales Agent (Alex) responded (55 chars)
+2026-04-13 20:25:58,438 [INFO] ManagerAgent: [ManagerAgent] Incoming request: 'Mondays?'
+2026-04-13 20:25:59,660 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:25:59,661 [INFO] ManagerAgent: [ManagerAgent] Routed 'Mondays?' → general
+2026-04-13 20:25:59,662 [INFO] ManagerAgent: [ManagerAgent] Invoking General Agent
+2026-04-13 20:26:01,427 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:26:04,374 [INFO] CodeExecutor: [CodeExecutor] success=True | 2932 ms | 0 chart(s) | code_preview='# Filter the dataset for sales made on Mondays and count the total number of ite...' | error=none
+2026-04-13 20:26:05,457 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:26:05,461 [INFO] ManagerAgent: [ManagerAgent] General Agent responded (55 chars)
+2026-04-13 20:26:15,695 [INFO] ManagerAgent: [ManagerAgent] Incoming request: 'How many on each day?'
+2026-04-13 20:26:16,520 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:26:16,522 [INFO] ManagerAgent: [ManagerAgent] Routed 'How many on each day?' → sales
+2026-04-13 20:26:16,523 [INFO] ManagerAgent: [ManagerAgent] Invoking Sales Agent (Alex)
+2026-04-13 20:26:18,473 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:26:21,539 [INFO] CodeExecutor: [CodeExecutor] success=True | 3058 ms | 0 chart(s) | code_preview="# Calculate the total quantity of items sold for each day of the week\ndf['DayOfW..." | error=none
+2026-04-13 20:26:22,972 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-13 20:26:22,977 [INFO] ManagerAgent: [ManagerAgent] Sales Agent (Alex) responded (141 chars)

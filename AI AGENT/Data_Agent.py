@@ -3,6 +3,10 @@ import os
 
 class DataAgent:
     def __init__(self, file_path):
+        # Resolve relative paths against this file's directory so the agent
+        # works regardless of where the user launches the script from.
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), file_path)
         self.file_path = file_path
 
     def get_data(self):
