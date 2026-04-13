@@ -325,7 +325,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Tabs ─────────────────────────────────────────────────────────────────────────
-tab_dash, tab_chat = st.tabs(["📊  Dashboard", "💬  AI Chat"])
+tab_dash, tab_chat, tab_pred = st.tabs(["📊  Dashboard", "💬  AI Chat", "🔮  Prediction"])
 
 
 # ════════════════════════════════════════════════════════
@@ -576,4 +576,115 @@ with tab_chat:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🗑  Clear conversation", key="clear_chat"):
             st.session_state.messages = []
+            st.rerun()
+
+
+# ════════════════════════════════════════════════════════
+# TAB 3 — PREDICTION AGENT (Kai)
+# ════════════════════════════════════════════════════════
+with tab_pred:
+
+    MAX_PRED_HISTORY = 50
+
+    if "pred_messages" not in st.session_state:
+        st.session_state.pred_messages = []
+        st.session_state.pred_messages.append({
+            "role": "assistant",
+            "agent": "Prediction Agent (Kai)",
+            "content": (
+                "👋 Hi, I'm **Kai** — your Predictive Analytics Specialist.\n\n"
+                "I can help you with:\n"
+                "- 📉 **Churn risk** — which customers are likely to leave\n"
+                "- 📈 **Revenue forecasts** — what the next months might look like\n"
+                "- 🚀 **High-growth products** — what's taking off\n"
+                "- 🐢 **Slow movers** — what's declining and should be reviewed\n"
+                "- 💰 **Customer CLV** — projected lifetime value per customer\n"
+                "- 🔄 **Repeat purchase probability** — how sticky your buyers are\n\n"
+                "What would you like to predict today?"
+            ),
+            "charts": [],
+        })
+
+    if len(st.session_state.pred_messages) > MAX_PRED_HISTORY:
+        st.session_state.pred_messages = st.session_state.pred_messages[-MAX_PRED_HISTORY:]
+
+    # ── Suggestion chips ─────────────────────────────────────────────────────────
+    if not any(m["role"] == "user" for m in st.session_state.pred_messages):
+        pred_suggestions = [
+            "What is the repeat purchase probability?",
+            "Which products are declining in demand?",
+            "Forecast revenue for the next 3 months",
+            "Who are our top at-risk customers?",
+            "Show me high-growth products",
+            "What is the CLV of customer 17850?",
+        ]
+        c1, c2, c3 = st.columns(3)
+        cols_cycle = [c1, c2, c3]
+        for i, s in enumerate(pred_suggestions):
+            if cols_cycle[i % 3].button(s, key=f"pred_sugg_{i}"):
+                st.session_state.pred_pending = s
+                st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Render helper ────────────────────────────────────────────────────────────
+    def _render_pred_msg(msg: dict) -> None:
+        agent_label = msg.get("agent", "Prediction Agent (Kai)")
+        with st.chat_message("assistant"):
+            st.caption(f"🔮 {agent_label}")
+            st.markdown(msg["content"])
+            for b64 in msg.get("charts", []):
+                img_bytes = base64.b64decode(b64)
+                st.image(img_bytes, use_container_width=True)
+
+    # ── Chat history ─────────────────────────────────────────────────────────────
+    for msg in st.session_state.pred_messages:
+        if msg["role"] == "user":
+            with st.chat_message("user"):
+                st.write(msg["content"])
+        else:
+            _render_pred_msg(msg)
+
+    # ── Shared helper: call Kai directly ─────────────────────────────────────────
+    def _process_pred_request(user_input: str) -> None:
+        history = st.session_state.pred_messages[:-1]
+        response = ""
+        agent_label = "Prediction Agent (Kai)"
+
+        with st.status("🔮 Kai is analysing your request...", expanded=True) as status_box:
+            for step in manager.handle_prediction_request(user_input, history=history):
+                if step["type"] == "status":
+                    status_box.update(label=step["message"])
+                elif step["type"] == "result":
+                    response = step["content"]
+                    agent_label = step.get("agent_label", agent_label)
+            status_box.update(
+                label="✅ Prediction Agent (Kai) responded",
+                state="complete",
+                expanded=False,
+            )
+
+        charts = manager.get_pending_charts()
+        st.session_state.pred_messages.append(
+            {"role": "assistant", "content": response, "agent": agent_label, "charts": charts}
+        )
+
+    # ── Handle suggestion click ───────────────────────────────────────────────────
+    if "pred_pending" in st.session_state:
+        user_input = st.session_state.pop("pred_pending")
+        st.session_state.pred_messages.append({"role": "user", "content": user_input})
+        _process_pred_request(user_input)
+        st.rerun()
+
+    # ── Chat input ────────────────────────────────────────────────────────────────
+    if prompt := st.chat_input("Ask Kai about forecasts, churn, CLV, product trends...", key="pred_input"):
+        st.session_state.pred_messages.append({"role": "user", "content": prompt})
+        _process_pred_request(prompt)
+        st.rerun()
+
+    # ── Clear button ──────────────────────────────────────────────────────────────
+    if st.session_state.pred_messages:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🗑  Clear conversation", key="clear_pred"):
+            st.session_state.pred_messages = []
             st.rerun()

@@ -489,6 +489,48 @@ class ManagerAgent:
     # Main entry point (generator — yields routing steps then the result)
     # ------------------------------------------------------------------
 
+    def handle_prediction_request(self, user_text: str, history: list = None):
+        """
+        Generator that routes directly to Kai (Prediction Agent), bypassing the classifier.
+        Yields the same step shapes as handle_request.
+        """
+        logger.info("[ManagerAgent] Prediction request (direct): %r", user_text[:100])
+
+        if self.df is None:
+            yield {
+                "type": "result",
+                "content": "I'm having trouble accessing the data. Please check the data file and try again.",
+                "agent_label": "Prediction Agent (Kai)",
+            }
+            return
+
+        yield {"type": "status", "message": "🔮 Kai is analysing your request..."}
+
+        messages = self._build_messages(user_text, history or [])
+        invoke_config = {"recursion_limit": 30}
+
+        try:
+            response = self.prediction_executor.invoke({"messages": messages}, invoke_config)
+            answer = response["messages"][-1].content
+            logger.info("[ManagerAgent] Prediction Agent (Kai) responded (%d chars)", len(answer))
+            yield {"type": "result", "content": answer, "agent_label": "Prediction Agent (Kai)"}
+
+        except Exception as e:
+            error_msg = str(e).lower()
+            logger.error("[ManagerAgent] Prediction Agent (Kai) error: %s", e)
+
+            if "quota" in error_msg or "rate" in error_msg:
+                content = "I'm temporarily rate-limited. Please wait a moment and try again."
+            elif "recursion" in error_msg:
+                content = (
+                    "This question required too many reasoning steps. "
+                    "Try breaking it into smaller, more specific questions."
+                )
+            else:
+                content = "I ran into an issue running the predictive analysis. Please try rephrasing."
+
+            yield {"type": "result", "content": content, "agent_label": "Prediction Agent (Kai)"}
+
     def handle_request(self, user_text: str, history: list = None):
         """
         Generator that yields intermediate routing steps and the final answer.
