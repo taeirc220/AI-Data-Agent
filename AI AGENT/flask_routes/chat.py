@@ -30,7 +30,11 @@ def api_chat():
         return jsonify({'error': 'Agent not available. Check that the data file is loaded.'}), 500
 
     try:
-        response = manager.handle_request(message, history=history)
+        # handle_request is a generator — consume it and extract the final result
+        response = ""
+        for step in manager.handle_request(message, history=history):
+            if step["type"] == "result":
+                response = step["content"]
         return jsonify({'response': response})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

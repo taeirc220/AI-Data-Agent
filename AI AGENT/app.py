@@ -232,7 +232,7 @@ CHART_BASE = dict(
 # ── Load agents ─────────────────────────────────────────────────────────────────
 # Bump this string whenever Manager.py / analyst files change — forces Streamlit
 # to discard the cached ManagerAgent and rebuild from the current code.
-_AGENT_VERSION = "v5"  # bump when Manager.py / analyst files change
+_AGENT_VERSION = "v6"  # bump when Manager.py / analyst files change
 
 def _csv_mtime() -> float:
     """Return the modification time of the CSV so the cache key tracks file changes."""
@@ -287,6 +287,7 @@ with st.sidebar:
         ("Alex", "Sales Analyst", "💼"),
         ("Dana", "Product Analyst", "📦"),
         ("Maya", "Customer Analyst", "👤"),
+        ("Kai",  "Prediction Analyst", "🔮"),
         ("Aria", "General Analyst · Code", "🧠"),
     ]
     for name, role, icon in agents_info:
@@ -471,9 +472,10 @@ with tab_chat:
                 "👋 Hello! I'm your **AI Data Department** — a team of specialised analysts "
                 "ready to dig into your retail data.\n\n"
                 "**Meet the team:**\n"
-                "- 💼 **Alex** — Sales Analyst *(revenue, orders, trends, forecasts)*\n"
+                "- 💼 **Alex** — Sales Analyst *(revenue, orders, trends)*\n"
                 "- 📦 **Dana** — Product Analyst *(product performance, rankings, lifecycle)*\n"
                 "- 👤 **Maya** — Customer Analyst *(profiles, loyalty, segmentation)*\n"
+                "- 🔮 **Kai** — Prediction Analyst *(forecasts, churn risk, CLV, demand trends)*\n"
                 "- 🧠 **Aria** — General Analyst *(cross-domain questions & custom code)*\n\n"
                 "What would you like to analyse today?"
             ),

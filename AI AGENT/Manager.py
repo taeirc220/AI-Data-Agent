@@ -36,6 +36,7 @@ from langchain_core.tools import tool as lc_tool
 from Sales_Analyst import SalesAnalyst
 from Product_Analyst import ProductAnalyst
 from Customer_Analyst import CustomerAnalyst
+from Prediction_Analyst import PredictionAnalyst
 from Code_Executor import CodeExecutor
 
 load_dotenv()
@@ -261,6 +262,42 @@ class ManagerAgent:
             self.llm, tools=self.customer_tools, prompt=customer_prompt
         )
 
+        # ── Prediction agent ───────────────────────────────────────────────────
+        self.prediction_analyst = PredictionAnalyst(df)
+        self.prediction_tools = [
+            self.prediction_analyst.search_products,
+            self.prediction_analyst.get_churn_risk_summary,
+            self.prediction_analyst.get_at_risk_customers,
+            self.prediction_analyst.get_revenue_forecast,
+            self.prediction_analyst.get_product_demand_trend,
+            self.prediction_analyst.get_high_growth_products,
+            self.prediction_analyst.get_slow_movers,
+            self.prediction_analyst.get_repeat_purchase_probability,
+            self.prediction_analyst.get_customer_clv_estimate,
+            execute_python,
+        ]
+
+        prediction_prompt = (
+            "You are Kai, a Predictive Analytics Specialist for an e-commerce business.\n\n"
+            "You answer questions about forecasts, trends, churn risk, customer lifetime value, "
+            "product growth and decline, and future-looking analysis.\n\n"
+            "Use your pre-built tools for standard predictive questions. "
+            "For custom forecasting, cohort projections, or charts, use execute_python.\n\n"
+            + self.schema_context
+            + "\nRULES:\n"
+            "1. Call a tool before answering — never guess or estimate without data.\n"
+            "2. If the user mentions a product by name, call search_products first.\n"
+            "3. Always state clearly that forecasts are based on historical patterns only — "
+            "   external factors (seasonality, market events) are not modelled.\n"
+            "4. If execute_python fails, diagnose the error and retry up to 3 times.\n"
+            "5. Respond in the same language the user wrote in (Hebrew or English).\n"
+            "6. Use £ for currency. Present forecasts with confidence ranges where possible.\n"
+            "7. If data is insufficient for a reliable forecast, say so — do not fabricate numbers.\n"
+        )
+        self.prediction_executor = create_react_agent(
+            self.llm, tools=self.prediction_tools, prompt=prediction_prompt
+        )
+
         # ── General / cross-domain agent ───────────────────────────────────────
         # execute_python is the primary tool. A handful of pre-built tools remain
         # as shortcuts for the most common single-stat lookups.
@@ -383,7 +420,7 @@ class ManagerAgent:
         system_prompt = (
             "You are a routing assistant for a retail analytics system. "
             "Classify the question into EXACTLY ONE of these four categories:\n\n"
-            "- sales: revenue totals, order counts, trends, forecasts, growth rates, "
+            "- sales: revenue totals, order counts, trends, growth rates, "
             "refund rates, anomalies, busiest days, peak hours, weekend vs weekday, "
             "month-over-month comparisons, date-range queries, Pareto analysis, "
             "basket/cross-sell analysis\n"
@@ -391,16 +428,23 @@ class ManagerAgent:
             "return rates per product, product trends, lifecycle status, popularity scores, "
             "price analysis\n"
             "- customer: buyer behaviour — top spenders, customer profiles by ID, loyalty, "
-            "repeat purchase rates, country breakdowns, VIP segments, churn risk, "
+            "repeat purchase rates, country breakdowns, VIP segments, "
             "ANY question containing a specific customer ID number (e.g. 'customer 18102', "
             "'ID 12345'), order history for a customer, spending by a specific customer\n"
+            "- prediction: forward-looking questions — revenue forecasts, churn risk, "
+            "customers likely to leave, product demand trends (growing/declining), "
+            "high-growth products, slow movers, customer lifetime value (CLV), "
+            "repeat purchase probability, 'what will happen', 'predict', 'forecast', "
+            "'at risk', 'next month/quarter', 'which products are dying/taking off'\n"
             "- general: questions that clearly span multiple domains, require joining "
             "sales + products + customers, involve custom code/analysis, or do not fit above\n\n"
             "IMPORTANT: The user may ask short follow-up questions using pronouns. "
             "Use the conversation history to understand context, then classify based on "
             "the full intent — not just the current message.\n\n"
-            "RULE: If the question mentions a numeric customer ID, ALWAYS classify as 'customer'.\n\n"
-            "Reply with ONLY one word: sales, product, customer, or general."
+            "RULES:\n"
+            "- If the question mentions a numeric customer ID, ALWAYS classify as 'customer'.\n"
+            "- If the question is about the future, forecasting, or risk, ALWAYS classify as 'prediction'.\n\n"
+            "Reply with ONLY one word: sales, product, customer, prediction, or general."
         )
 
         messages = [{"role": "system", "content": system_prompt}]
@@ -417,7 +461,7 @@ class ManagerAgent:
                 temperature=0.0,
             )
             result = response.choices[0].message.content.strip().lower()
-            bucket = result if result in ("sales", "product", "customer", "general") else "general"
+            bucket = result if result in ("sales", "product", "customer", "prediction", "general") else "general"
             logger.info("[ManagerAgent] Routed '%s' → %s", user_text[:60], bucket)
             return bucket
         except Exception as e:
@@ -479,10 +523,11 @@ class ManagerAgent:
         invoke_config = {"recursion_limit": 30}
 
         executor_map = {
-            "sales":    (self.sales_executor,    "Sales Agent (Alex)"),
-            "product":  (self.product_executor,  "Product Agent (Dana)"),
-            "customer": (self.customer_executor, "Customer Agent (Maya)"),
-            "general":  (self.general_executor,  "General Agent (Aria)"),
+            "sales":      (self.sales_executor,      "Sales Agent (Alex)"),
+            "product":    (self.product_executor,    "Product Agent (Dana)"),
+            "customer":   (self.customer_executor,   "Customer Agent (Maya)"),
+            "prediction": (self.prediction_executor, "Prediction Agent (Kai)"),
+            "general":    (self.general_executor,    "General Agent (Aria)"),
         }
 
         agent_executor, agent_label = executor_map.get(
@@ -519,10 +564,11 @@ class ManagerAgent:
                 )
             else:
                 bucket_errors = {
-                    "sales":    "I ran into an issue while pulling sales data.",
-                    "product":  "I ran into an issue while analysing product data.",
-                    "customer": "I ran into an issue while looking up customer data.",
-                    "general":  "I ran into an unexpected error processing that question.",
+                    "sales":      "I ran into an issue while pulling sales data.",
+                    "product":    "I ran into an issue while analysing product data.",
+                    "customer":   "I ran into an issue while looking up customer data.",
+                    "prediction": "I ran into an issue while running the predictive analysis.",
+                    "general":    "I ran into an unexpected error processing that question.",
                 }
                 content = (
                     bucket_errors.get(agent_bucket, "An unexpected error occurred.")
