@@ -232,7 +232,7 @@ CHART_BASE = dict(
 # ── Load agents ─────────────────────────────────────────────────────────────────
 # Bump this string whenever Manager.py / analyst files change — forces Streamlit
 # to discard the cached ManagerAgent and rebuild from the current code.
-_AGENT_VERSION = "v8"  # bump when Manager.py / analyst files change
+_AGENT_VERSION = "v9"  # bump when Manager.py / analyst files change
 
 def _csv_mtime() -> float:
     """Return the modification time of the CSV so the cache key tracks file changes."""
@@ -244,6 +244,16 @@ def _csv_mtime() -> float:
 
 @st.cache_resource(show_spinner=False)
 def load_agents(_version: str = _AGENT_VERSION, _mtime: float = 0.0):
+    import importlib
+    import sys
+
+    # Force-reload all agent modules so Streamlit's soft-reload (which keeps
+    # sys.modules alive between script reruns) never serves stale bytecode.
+    for mod_name in ("Manager", "Data_Agent", "Sales_Analyst", "Product_Analyst",
+                     "Customer_Analyst", "Prediction_Analyst", "Code_Executor"):
+        if mod_name in sys.modules:
+            importlib.reload(sys.modules[mod_name])
+
     from Data_Agent import DataAgent
     from Manager import ManagerAgent
     from Sales_Analyst import SalesAnalyst
@@ -277,8 +287,8 @@ with st.sidebar:
     with st.spinner("Initializing agents..."):
         df, manager, sales = load_agents(_AGENT_VERSION, _csv_mtime())
 
-    if df is None:
-        st.error("Could not load data. Check that `mixed_online_retail.csv` is in the project folder.")
+    if df is None or manager is None:
+        st.error("Could not load data or initialize agents. Check that `mixed_online_retail.csv` is in the project folder.")
         st.stop()
 
     st.markdown('<div class="section-label">Active Agents</div>', unsafe_allow_html=True)
