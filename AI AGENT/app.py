@@ -278,7 +278,7 @@ CHART_BASE = dict(
 # ── Load agents ─────────────────────────────────────────────────────────────────
 # Bump this string whenever Manager.py / analyst files change — forces Streamlit
 # to discard the cached ManagerAgent and rebuild from the current code.
-_AGENT_VERSION = "v17"  # bump when Manager.py / analyst files change
+_AGENT_VERSION = "v18"  # bump when Manager.py / analyst files change
 
 def _csv_mtime() -> float:
     """Return the modification time of the CSV so the cache key tracks file changes."""
@@ -653,19 +653,21 @@ elif st.session_state.page == "🔮 Prediction":
 
     @st.cache_data(show_spinner=False)
     def _pred_data(_version: str, _mtime: float):
-        """Cached computation of all prediction dashboard data."""
+        """Cached computation of all prediction dashboard data including ML models."""
         churn     = pa.get_churn_risk_summary(days_inactive=90)
         repeat    = pa.get_repeat_purchase_probability()
         forecast  = pa.get_revenue_forecast(horizon_months=3)
         growth    = pa.get_high_growth_products(lookback_months=3, top_n=6)
         slow      = pa.get_slow_movers(lookback_months=3, top_n=6)
-        return churn, repeat, forecast, growth, slow
+        ml_churn  = pa.get_churn_probability_scores(churn_threshold_days=90, top_n=20)
+        ml_seg    = pa.get_customer_segments(n_clusters=4)
+        return churn, repeat, forecast, growth, slow, ml_churn, ml_seg
 
-    churn_data, repeat_data, forecast_data, growth_data, slow_data = _pred_data(
+    churn_data, repeat_data, forecast_data, growth_data, slow_data, ml_churn_data, ml_seg_data = _pred_data(
         _AGENT_VERSION, _csv_mtime()
     )
 
-    pred_t1, pred_t2 = st.tabs(["💬 Ask Rey", "📊 Live Metrics"])
+    pred_t1, pred_t2, pred_t3 = st.tabs(["💬 Ask Rey", "📊 Live Metrics", "🤖 Live ML Models"])
 
     with pred_t1:
 
@@ -1035,3 +1037,278 @@ elif st.session_state.page == "🔮 Prediction":
                 st.plotly_chart(fig_slow, width='stretch')
             elif slow_data and "error" in slow_data[0]:
                 st.info(slow_data[0]["error"], icon="ℹ️")
+
+    with pred_t3:
+
+        # ── Section A: Model Metadata Cards ──────────────────────────────────────
+        st.markdown('<div class="section-label">Live ML Model Status</div>', unsafe_allow_html=True)
+        col_m1, col_m2, col_m3 = st.columns(3)
+
+        with col_m1:
+            st.markdown('<div class="chart-title">Prophet Forecaster</div>', unsafe_allow_html=True)
+            if "error" not in forecast_data:
+                st.metric("Model", "Prophet")
+                st.metric("Training Period",
+                          f"{forecast_data.get('training_start', 'N/A')} → {forecast_data.get('training_end', 'N/A')}")
+                st.metric("Training Days", f"{forecast_data.get('training_days', 'N/A'):,}" if forecast_data.get('training_days') else "N/A")
+                st.caption("Multiplicative seasonality · UK holidays · 95% CI")
+            else:
+                st.warning(forecast_data.get("error", "Model unavailable"), icon="⚠️")
+                st.caption("Falling back to linear regression")
+
+        with col_m2:
+            st.markdown('<div class="chart-title">Random Forest Churn Classifier</div>', unsafe_allow_html=True)
+            if "error" not in ml_churn_data:
+                meta = ml_churn_data.get("model_metadata", {})
+                st.metric("Accuracy", f"{meta.get('accuracy', 'N/A')}%")
+                st.metric("Recall (Churned)", f"{meta.get('recall_churned', 'N/A')}%")
+                st.metric("Training Samples", f"{meta.get('training_samples', 0):,}")
+                st.caption(f"High-risk customers: {ml_churn_data.get('high_risk_count', 'N/A'):,}")
+            else:
+                st.warning(ml_churn_data.get("error", "Model unavailable"), icon="⚠️")
+
+        with col_m3:
+            st.markdown('<div class="chart-title">KMeans Segmentation</div>', unsafe_allow_html=True)
+            if "error" not in ml_seg_data:
+                meta = ml_seg_data.get("model_metadata", {})
+                st.metric("Clusters", meta.get("n_clusters", "N/A"))
+                st.metric("Silhouette Score", f"{meta.get('silhouette_score', 0):.4f}")
+                total_seg = sum(ml_seg_data.get("all_segments_count", {}).values())
+                st.metric("Total Customers", f"{total_seg:,}")
+                st.caption("RFM-based · Champions / Loyal / At-Risk / Hibernating")
+            else:
+                st.warning(ml_seg_data.get("error", "Model unavailable"), icon="⚠️")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Section B: Prophet Forecast Chart with Confidence Intervals ───────────
+        st.markdown('<div class="chart-title">Prophet Revenue Forecast — 3-Month Horizon with 95% Confidence Intervals</div>', unsafe_allow_html=True)
+
+        if "error" not in forecast_data and "forecast" in forecast_data:
+            fcast_dict = forecast_data["forecast"]
+            rows = []
+            for month_str, vals in fcast_dict.items():
+                if isinstance(vals, dict):
+                    rows.append({
+                        "month":     month_str,
+                        "predicted": vals.get("predicted_gbp", 0),
+                        "lower":     vals.get("lower_bound_gbp", 0),
+                        "upper":     vals.get("upper_bound_gbp", 0),
+                    })
+                else:
+                    # Linear fallback — no CI, synthesise narrow band
+                    rows.append({
+                        "month":     month_str,
+                        "predicted": float(vals),
+                        "lower":     float(vals) * 0.9,
+                        "upper":     float(vals) * 1.1,
+                    })
+
+            if rows:
+                fcast_df_ml = pd.DataFrame(rows).sort_values("month")
+                hist_raw = sales.get_monthly_revenue()
+                if isinstance(hist_raw, dict) and "error" not in hist_raw:
+                    hist_df_ml = (
+                        pd.DataFrame(list(hist_raw.items()), columns=["month", "revenue"])
+                        .sort_values("month")
+                        .tail(12)
+                    )
+
+                    fig_prophet = go.Figure()
+
+                    # Historical line
+                    fig_prophet.add_trace(go.Scatter(
+                        x=hist_df_ml["month"], y=hist_df_ml["revenue"],
+                        mode="lines",
+                        name="Historical",
+                        line=dict(color="#1f6feb", width=2.5),
+                        fill="tozeroy",
+                        fillcolor="rgba(31,111,235,0.08)",
+                        hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra>Historical</extra>",
+                    ))
+
+                    bridge_ml = hist_df_ml.iloc[[-1]].copy()
+                    fcast_x_all = pd.concat([bridge_ml["month"], fcast_df_ml["month"]])
+                    fcast_y_all = pd.concat([bridge_ml["revenue"], fcast_df_ml["predicted"]])
+                    fcast_lo    = pd.concat([bridge_ml["revenue"], fcast_df_ml["lower"]])
+                    fcast_hi    = pd.concat([bridge_ml["revenue"], fcast_df_ml["upper"]])
+
+                    # Confidence band (filled polygon: upper + reversed lower)
+                    fig_prophet.add_trace(go.Scatter(
+                        x=pd.concat([fcast_x_all, fcast_x_all.iloc[::-1]]),
+                        y=pd.concat([fcast_hi, fcast_lo.iloc[::-1]]),
+                        fill="toself",
+                        fillcolor="rgba(139,92,246,0.15)",
+                        line=dict(color="rgba(0,0,0,0)"),
+                        name="95% CI",
+                        hoverinfo="skip",
+                    ))
+
+                    # Forecast line
+                    fig_prophet.add_trace(go.Scatter(
+                        x=fcast_x_all, y=fcast_y_all,
+                        mode="lines+markers",
+                        name="Prophet Forecast",
+                        line=dict(color="#8b5cf6", width=2.5, dash="dash"),
+                        marker=dict(size=8, color="#8b5cf6"),
+                        hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra>Forecast</extra>",
+                    ))
+
+                    fig_prophet.update_layout(
+                        **{**CHART_BASE, "showlegend": True},
+                        height=360,
+                        legend=dict(
+                            orientation="h", x=0, y=1.12,
+                            font=dict(size=11, color="#8b949e"),
+                            bgcolor="rgba(0,0,0,0)",
+                        ),
+                        xaxis=dict(gridcolor="#21262d", tickfont=dict(size=10), title=""),
+                        yaxis=dict(gridcolor="#21262d", tickprefix="£", tickfont=dict(size=10), title=""),
+                        title=dict(
+                            text=f"{forecast_data.get('model', 'Prophet')} · Shaded = 95% confidence interval",
+                            font=dict(size=11, color="#8b949e"),
+                        ),
+                    )
+                    st.plotly_chart(fig_prophet, width='stretch')
+        else:
+            st.info(forecast_data.get("error", "Forecast unavailable."), icon="ℹ️")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Section C: Churn Distribution + Segmentation ─────────────────────────
+        col_c1, col_c2 = st.columns(2)
+
+        with col_c1:
+            st.markdown('<div class="chart-title">ML Churn Probability Distribution</div>', unsafe_allow_html=True)
+            if "error" not in ml_churn_data and ml_churn_data.get("high_risk_customers"):
+                hr_df = pd.DataFrame(ml_churn_data["high_risk_customers"])
+
+                fig_hist = go.Figure()
+                fig_hist.add_trace(go.Histogram(
+                    x=hr_df["churn_probability"],
+                    nbinsx=15,
+                    marker=dict(color="#f85149", line=dict(color="#161b22", width=0.5)),
+                    name="Churn Probability",
+                    hovertemplate="Score: %{x:.0f}%<br>Customers: %{y}<extra></extra>",
+                ))
+                fig_hist.update_layout(
+                    **CHART_BASE,
+                    height=260,
+                    xaxis=dict(gridcolor="#21262d", title="Churn Probability (%)", tickfont=dict(size=10)),
+                    yaxis=dict(gridcolor="#21262d", title="# Customers", tickfont=dict(size=10)),
+                    title=dict(
+                        text=f"Top {len(hr_df)} at-risk · Random Forest · "
+                             f"Accuracy {ml_churn_data.get('model_metadata', {}).get('accuracy', '?')}%",
+                        font=dict(size=11, color="#8b949e"),
+                    ),
+                )
+                st.plotly_chart(fig_hist, width='stretch')
+
+                # Feature importance bar chart
+                fi = ml_churn_data.get("feature_importances", [])
+                if fi:
+                    fi_df = pd.DataFrame(fi).sort_values("importance_pct")
+                    fig_fi = go.Figure(go.Bar(
+                        x=fi_df["importance_pct"],
+                        y=fi_df["feature"],
+                        orientation="h",
+                        marker=dict(
+                            color=fi_df["importance_pct"],
+                            colorscale=[[0, "#3a1a0a"], [1, "#f78166"]],
+                            line=dict(color="rgba(0,0,0,0)"),
+                        ),
+                        text=[f"{v:.1f}%" for v in fi_df["importance_pct"]],
+                        textposition="outside",
+                        textfont=dict(size=10, color="#c9d1d9"),
+                        hovertemplate="<b>%{y}</b>: %{x:.1f}%<extra></extra>",
+                    ))
+                    fig_fi.update_layout(
+                        **CHART_BASE,
+                        height=210,
+                        xaxis=dict(gridcolor="#21262d", ticksuffix="%", tickfont=dict(size=10), title="Importance %"),
+                        yaxis=dict(gridcolor="#21262d", tickfont=dict(size=10), title=""),
+                        title=dict(text="Feature Importance", font=dict(size=11, color="#8b949e")),
+                    )
+                    st.plotly_chart(fig_fi, width='stretch')
+            else:
+                st.info(ml_churn_data.get("error", "Churn ML model unavailable"), icon="ℹ️")
+
+        with col_c2:
+            st.markdown('<div class="chart-title">Customer Segmentation — RFM KMeans</div>', unsafe_allow_html=True)
+            if "error" not in ml_seg_data and ml_seg_data.get("cluster_summary"):
+                seg_df = pd.DataFrame(ml_seg_data["cluster_summary"])
+
+                _SEG_COLORS = {
+                    "Champions":       "#3fb950",
+                    "Loyal Customers": "#1f6feb",
+                    "At-Risk":         "#f0883e",
+                    "Hibernating":     "#f85149",
+                    "Lost":            "#8b949e",
+                    "New Customers":   "#8b5cf6",
+                }
+
+                fig_seg = go.Figure()
+                for _, row in seg_df.iterrows():
+                    color = _SEG_COLORS.get(row["label"], "#8b949e")
+                    size  = max(20, min(70, row["avg_monetary_gbp"] / 80))
+                    fig_seg.add_trace(go.Scatter(
+                        x=[row["avg_recency_days"]],
+                        y=[row["avg_frequency"]],
+                        mode="markers+text",
+                        marker=dict(
+                            size=size,
+                            color=color,
+                            opacity=0.85,
+                            line=dict(color="#161b22", width=1.5),
+                        ),
+                        text=[row["label"]],
+                        textposition="top center",
+                        textfont=dict(size=10, color="#e6edf3"),
+                        name=row["label"],
+                        hovertemplate=(
+                            f"<b>{row['label']}</b><br>"
+                            f"Customers: {row['customer_count']:,} ({row['pct_of_total']}%)<br>"
+                            f"Avg Recency: {row['avg_recency_days']:.0f} days<br>"
+                            f"Avg Frequency: {row['avg_frequency']:.1f} orders<br>"
+                            f"Avg Spend: £{row['avg_monetary_gbp']:,.0f}"
+                            "<extra></extra>"
+                        ),
+                    ))
+
+                sil = ml_seg_data.get("model_metadata", {}).get("silhouette_score", 0)
+                n_cl = ml_seg_data.get("model_metadata", {}).get("n_clusters", 4)
+                fig_seg.update_layout(
+                    **{**CHART_BASE, "showlegend": False},
+                    height=380,
+                    xaxis=dict(gridcolor="#21262d", title="Avg Recency (days — lower = more recent)", tickfont=dict(size=10)),
+                    yaxis=dict(gridcolor="#21262d", title="Avg Order Frequency", tickfont=dict(size=10)),
+                    title=dict(
+                        text=f"KMeans RFM · {n_cl} clusters · Silhouette score: {sil:.3f}  (bubble size ∝ avg spend)",
+                        font=dict(size=11, color="#8b949e"),
+                    ),
+                )
+                st.plotly_chart(fig_seg, width='stretch')
+
+                # Segment summary table
+                st.markdown('<div class="chart-title">Segment Summary</div>', unsafe_allow_html=True)
+                display_seg = seg_df[["label", "customer_count", "pct_of_total",
+                                      "avg_recency_days", "avg_frequency", "avg_monetary_gbp"]].rename(columns={
+                    "label":            "Segment",
+                    "customer_count":   "Customers",
+                    "pct_of_total":     "% of Base",
+                    "avg_recency_days": "Avg Recency (days)",
+                    "avg_frequency":    "Avg Orders",
+                    "avg_monetary_gbp": "Avg Spend (£)",
+                })
+                st.dataframe(
+                    display_seg.style.format({
+                        "% of Base":         "{:.1f}%",
+                        "Avg Recency (days)": "{:.0f}",
+                        "Avg Orders":         "{:.1f}",
+                        "Avg Spend (£)":      "£{:,.0f}",
+                    }),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.info(ml_seg_data.get("error", "Segmentation model unavailable"), icon="ℹ️")
