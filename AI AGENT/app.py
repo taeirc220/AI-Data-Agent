@@ -234,8 +234,13 @@ st.markdown("""
         color: #4C1D95 !important;
         font-size: 12px !important;
         font-weight: 500 !important;
-        padding: 6px 14px !important;
+        padding: 8px 16px !important;
         width: 100% !important;
+        white-space: normal !important;
+        word-break: normal !important;
+        text-align: left !important;
+        line-height: 1.5 !important;
+        height: auto !important;
         transition: all 0.15s ease !important;
         box-shadow: 0 1px 2px rgba(109,40,217,0.06) !important;
     }
@@ -789,7 +794,7 @@ elif st.session_state.page == "💬 AI Chat":
         }
 
     # ── Split-pane layout ─────────────────────────────────────────────────────
-    col_chat, col_canvas = st.columns([1, 2.5], gap="small")
+    col_chat, col_canvas = st.columns([2, 3], gap="medium")
 
     with col_chat:
         st.markdown("""
@@ -815,10 +820,8 @@ elif st.session_state.page == "💬 AI Chat":
                 "Which country earns the most?",
                 "Weekend vs weekday sales",
             ]
-            c1, c2 = st.columns(2)
-            cols_cycle = [c1, c2]
             for i, s in enumerate(suggestions):
-                if cols_cycle[i % 2].button(s, key=f"sugg_{i}"):
+                if st.button(s, key=f"sugg_{i}"):
                     st.session_state.pending_input = s
                     st.rerun()
             st.markdown("<br>", unsafe_allow_html=True)
@@ -947,7 +950,7 @@ elif st.session_state.page == "🔮 Prediction":
             }
 
         # ── Split-pane layout ─────────────────────────────────────────────────
-        col_pchat, col_pcanvas = st.columns([1, 2.5], gap="small")
+        col_pchat, col_pcanvas = st.columns([2, 3], gap="medium")
 
         with col_pchat:
             st.markdown("""
@@ -969,10 +972,8 @@ elif st.session_state.page == "🔮 Prediction":
                     "Repeat purchase probability",
                     "High-growth products",
                 ]
-                c1, c2 = st.columns(2)
-                cols_cycle = [c1, c2]
                 for i, s in enumerate(pred_suggestions):
-                    if cols_cycle[i % 2].button(s, key=f"pred_sugg_{i}"):
+                    if st.button(s, key=f"pred_sugg_{i}"):
                         st.session_state.pred_pending = s
                         st.rerun()
                 st.markdown("<br>", unsafe_allow_html=True)
