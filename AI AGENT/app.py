@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ── Custom CSS ──────────────────────────────────────────────────────────────────
+# ── Custom CSS  (Monday.com light theme) ───────────────────────────────────────
 st.markdown("""
 <style>
     /* ── Hide Streamlit chrome ── */
@@ -23,7 +23,7 @@ st.markdown("""
     footer    { visibility: hidden; }
 
     /* ── Base ── */
-    .stApp { background-color: #0d1117; }
+    .stApp { background-color: #F7F5FF; }
     .block-container {
         padding-top: 0.5rem !important;
         padding-bottom: 1rem !important;
@@ -32,38 +32,41 @@ st.markdown("""
 
     /* ── Sidebar ── */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
-        border-right: 1px solid #21262d;
+        background: #EDE9FE !important;
+        border-right: 1px solid #DDD6FE;
     }
+    [data-testid="stSidebar"] * { color: #4C1D95 !important; }
 
     /* ── Split-pane: chat column ── */
     div[data-testid="stHorizontalBlock"]
       > div[data-testid="stColumn"]:first-child
       > div[data-testid="stVerticalBlock"] {
-        background: #0d1117;
-        border-right: 1px solid #21262d;
+        background: #FFFFFF;
+        border-right: 1px solid #E5E7EB;
         min-height: calc(100vh - 60px);
-        padding-right: 8px !important;
+        padding-right: 10px !important;
+        border-radius: 12px 0 0 12px;
     }
 
     /* ── Split-pane: canvas column ── */
     div[data-testid="stHorizontalBlock"]
       > div[data-testid="stColumn"]:last-child
       > div[data-testid="stVerticalBlock"] {
-        background: #0d1117;
+        background: #F7F5FF;
         min-height: calc(100vh - 60px);
         padding-left: 12px !important;
     }
 
     /* ── Artifact canvas card ── */
     .canvas-card {
-        background: #161b22;
-        border: 1px solid #21262d;
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
         border-radius: 14px;
         padding: 20px 24px;
         min-height: calc(100vh - 120px);
         position: sticky;
         top: 0.5rem;
+        box-shadow: 0 1px 4px rgba(109,40,217,0.06);
     }
     .canvas-header {
         display: flex;
@@ -71,20 +74,20 @@ st.markdown("""
         justify-content: space-between;
         margin-bottom: 16px;
         padding-bottom: 12px;
-        border-bottom: 1px solid #21262d;
+        border-bottom: 1px solid #EDE9FE;
     }
     .canvas-title {
-        color: #f0f6fc;
+        color: #1E1B4B;
         font-size: 14px;
         font-weight: 600;
         letter-spacing: -0.2px;
     }
     .canvas-badge {
-        background: rgba(31,111,235,0.15);
-        border: 1px solid rgba(31,111,235,0.3);
-        color: #79c0ff;
+        background: #EDE9FE;
+        border: 1px solid #DDD6FE;
+        color: #6D28D9;
         font-size: 10px;
-        font-weight: 600;
+        font-weight: 700;
         letter-spacing: 0.5px;
         text-transform: uppercase;
         border-radius: 20px;
@@ -96,27 +99,27 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         height: calc(100vh - 250px);
-        color: #484f58;
+        color: #C4B5FD;
         text-align: center;
         gap: 12px;
     }
-    .canvas-empty-icon { font-size: 48px; opacity: 0.4; }
-    .canvas-empty-text { font-size: 13px; line-height: 1.6; max-width: 260px; }
+    .canvas-empty-icon { font-size: 48px; opacity: 0.5; }
+    .canvas-empty-text { font-size: 13px; line-height: 1.6; max-width: 260px; color: #9CA3AF; }
 
-    /* ── Chat pane scroll container ── */
+    /* ── Chat pane scroll ── */
     .chat-scroll {
         max-height: calc(100vh - 200px);
         overflow-y: auto;
         padding-right: 4px;
         scrollbar-width: thin;
-        scrollbar-color: #30363d transparent;
+        scrollbar-color: #DDD6FE transparent;
     }
 
     /* ── Tabs ── */
     .stTabs [data-baseweb="tab-list"] {
         background: transparent;
         gap: 8px;
-        border-bottom: 1px solid #21262d;
+        border-bottom: 1px solid #E5E7EB;
         padding-bottom: 0;
     }
     .stTabs [data-baseweb="tab"] {
@@ -124,41 +127,42 @@ st.markdown("""
         border: none;
         border-bottom: 2px solid transparent;
         border-radius: 0;
-        color: #8b949e;
+        color: #9CA3AF;
         padding: 8px 20px;
         font-weight: 500;
         font-size: 14px;
     }
     .stTabs [aria-selected="true"] {
         background: transparent !important;
-        border-bottom: 2px solid #1f6feb !important;
-        color: #f0f6fc !important;
+        border-bottom: 2px solid #7C3AED !important;
+        color: #1E1B4B !important;
     }
     .stTabs [data-baseweb="tab-panel"] { padding-top: 24px; }
 
     /* ── Native metric cards ── */
     [data-testid="stMetric"] {
-        background: linear-gradient(135deg, #161b22, #1c2128);
-        border: 1px solid #30363d;
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
         border-radius: 12px;
         padding: 16px 20px;
+        box-shadow: 0 1px 3px rgba(109,40,217,0.06);
     }
     [data-testid="stMetricLabel"] p {
-        color: #8b949e !important;
+        color: #6B7280 !important;
         font-size: 11px !important;
         font-weight: 600 !important;
         text-transform: uppercase;
         letter-spacing: 0.8px;
     }
     [data-testid="stMetricValue"] {
-        color: #f0f6fc !important;
+        color: #1E1B4B !important;
         font-size: 22px !important;
         font-weight: 700 !important;
     }
     [data-testid="stMetricDelta"] svg { display: none; }
     [data-testid="stMetricDelta"] > div {
         font-size: 11px !important;
-        color: #8b949e !important;
+        color: #6B7280 !important;
     }
 
     /* ── Agent status cards ── */
@@ -166,21 +170,22 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 10px;
-        background: #161b22;
-        border: 1px solid #21262d;
+        background: #FFFFFF;
+        border: 1px solid #DDD6FE;
         border-radius: 10px;
         padding: 10px 14px;
         margin-bottom: 8px;
+        box-shadow: 0 1px 2px rgba(109,40,217,0.05);
     }
     .agent-dot {
         width: 8px; height: 8px;
         border-radius: 50%;
-        background: #3fb950;
-        box-shadow: 0 0 6px #3fb950;
+        background: #059669;
+        box-shadow: 0 0 6px #059669;
         flex-shrink: 0;
     }
-    .agent-name { color: #e6edf3; font-size: 13px; font-weight: 500; }
-    .agent-role { color: #8b949e; font-size: 11px; }
+    .agent-name { color: #1E1B4B; font-size: 13px; font-weight: 500; }
+    .agent-role { color: #6B7280; font-size: 11px; }
 
     /* ── Compact page header ── */
     .page-header {
@@ -188,25 +193,25 @@ st.markdown("""
         align-items: center;
         gap: 10px;
         padding: 10px 0 14px 0;
-        border-bottom: 1px solid #21262d;
+        border-bottom: 1px solid #EDE9FE;
         margin-bottom: 16px;
     }
     .page-header-title {
-        color: #f0f6fc;
+        color: #1E1B4B;
         font-size: 15px;
         font-weight: 700;
         letter-spacing: -0.3px;
     }
     .page-header-sub {
-        color: #8b949e;
+        color: #6B7280;
         font-size: 11px;
         margin-top: 1px;
     }
 
     /* ── Main header (dashboard only) ── */
     .main-header {
-        background: linear-gradient(135deg, #0d1117 0%, #161b22 60%, #1c2128 100%);
-        border: 1px solid #30363d;
+        background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 60%, #E0E7FF 100%);
+        border: 1px solid #DDD6FE;
         border-radius: 16px;
         padding: 20px 28px;
         margin-bottom: 20px;
@@ -216,32 +221,34 @@ st.markdown("""
     .main-header::before {
         content: '';
         position: absolute;
-        top: 0; left: 0; right: 0; height: 2px;
-        background: linear-gradient(90deg, #1f6feb 0%, #8b5cf6 50%, #3fb950 100%);
+        top: 0; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, #7C3AED 0%, #6D28D9 50%, #4F46E5 100%);
+        border-radius: 16px 16px 0 0;
     }
 
     /* ── Suggestion buttons ── */
     .stButton > button {
-        border-radius: 20px !important;
-        border: 1px solid #484f58 !important;
-        background: #21262d !important;
-        color: #c9d1d9 !important;
+        border-radius: 8px !important;
+        border: 1px solid #DDD6FE !important;
+        background: #FFFFFF !important;
+        color: #4C1D95 !important;
         font-size: 12px !important;
         font-weight: 500 !important;
         padding: 6px 14px !important;
         width: 100% !important;
         transition: all 0.15s ease !important;
+        box-shadow: 0 1px 2px rgba(109,40,217,0.06) !important;
     }
     .stButton > button:hover {
-        border-color: #1f6feb !important;
-        color: #79c0ff !important;
-        background: rgba(31, 111, 235, 0.12) !important;
+        border-color: #7C3AED !important;
+        color: #6D28D9 !important;
+        background: #F5F3FF !important;
     }
 
     /* ── Chat message bubbles ── */
     [data-testid="stChatMessage"] {
-        background: #1c2128 !important;
-        border: 1px solid #30363d !important;
+        background: #FAFAFA !important;
+        border: 1px solid #E5E7EB !important;
         border-radius: 12px !important;
         padding: 14px 18px !important;
         margin-bottom: 10px !important;
@@ -253,19 +260,19 @@ st.markdown("""
     [data-testid="stChatMessage"] strong,
     [data-testid="stChatMessage"] em,
     [data-testid="stChatMessage"] code {
-        color: #e6edf3 !important;
+        color: #1E1B4B !important;
     }
     [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
-        background: #1a2d4a !important;
-        border-color: #1f6feb !important;
+        background: #F5F3FF !important;
+        border-color: #DDD6FE !important;
     }
     [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
-        background: #1c2128 !important;
-        border-color: #30363d !important;
+        background: #FFFFFF !important;
+        border-color: #E5E7EB !important;
     }
     [data-testid="stChatMessage"] .stCaption,
     [data-testid="stChatMessage"] [data-testid="stCaptionContainer"] p {
-        color: #3fb950 !important;
+        color: #7C3AED !important;
         font-size: 11px !important;
         font-weight: 600 !important;
         letter-spacing: 0.3px !important;
@@ -274,28 +281,28 @@ st.markdown("""
 
     /* ── Chat input ── */
     [data-testid="stChatInput"] {
-        background-color: #161b22 !important;
-        border: 1.5px solid #484f58 !important;
-        border-radius: 14px !important;
+        background-color: #FFFFFF !important;
+        border: 1.5px solid #DDD6FE !important;
+        border-radius: 12px !important;
     }
     [data-testid="stChatInput"] textarea {
-        background-color: #161b22 !important;
+        background-color: #FFFFFF !important;
         border: none !important;
-        color: #e6edf3 !important;
-        border-radius: 14px !important;
+        color: #1E1B4B !important;
+        border-radius: 12px !important;
         font-size: 14px !important;
     }
     [data-testid="stChatInput"] textarea::placeholder {
-        color: #6e7681 !important;
+        color: #9CA3AF !important;
     }
     [data-testid="stChatInput"]:focus-within {
-        border-color: #1f6feb !important;
-        box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.2) !important;
+        border-color: #7C3AED !important;
+        box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important;
     }
 
     /* ── Section headers ── */
     .section-label {
-        color: #8b949e;
+        color: #6B7280;
         font-size: 10px;
         font-weight: 700;
         letter-spacing: 1.2px;
@@ -305,7 +312,7 @@ st.markdown("""
 
     /* ── Chart subsection title ── */
     .chart-title {
-        color: #8b949e;
+        color: #6B7280;
         font-size: 11px;
         font-weight: 600;
         letter-spacing: 0.8px;
@@ -313,8 +320,8 @@ st.markdown("""
         margin-bottom: 4px;
     }
 
-    hr { border-color: #21262d !important; }
-    .stSpinner > div { border-top-color: #1f6feb !important; }
+    hr { border-color: #E5E7EB !important; }
+    .stSpinner > div { border-top-color: #7C3AED !important; }
 
     /* ── Sidebar navigation radio ── */
     [data-testid="stSidebar"] [data-testid="stRadio"] > label { display: none; }
@@ -325,7 +332,7 @@ st.markdown("""
         background: transparent;
         border: 1px solid transparent;
         border-radius: 8px;
-        color: #8b949e;
+        color: #5B21B6 !important;
         font-size: 13px;
         font-weight: 500;
         padding: 8px 12px;
@@ -334,35 +341,44 @@ st.markdown("""
         display: flex; align-items: center; gap: 6px;
     }
     [data-testid="stSidebar"] [data-testid="stRadio"] > div > label:hover {
-        background: rgba(31,111,235,0.10);
-        border-color: #30363d;
-        color: #e6edf3;
+        background: rgba(124,58,237,0.10);
+        border-color: #DDD6FE;
+        color: #4C1D95 !important;
     }
     [data-testid="stSidebar"] [data-testid="stRadio"] > div > label:has(input:checked) {
-        background: rgba(31,111,235,0.15);
-        border-color: #1f6feb;
-        color: #79c0ff;
+        background: rgba(124,58,237,0.12);
+        border-color: #7C3AED;
+        color: #6D28D9 !important;
+        font-weight: 600;
     }
 
     /* ── Expander chrome ── */
     [data-testid="stExpander"] {
-        background: #161b22 !important;
-        border: 1px solid #21262d !important;
+        background: #FFFFFF !important;
+        border: 1px solid #E5E7EB !important;
         border-radius: 10px !important;
     }
     [data-testid="stExpander"] summary {
-        color: #8b949e !important; font-size: 12px !important; font-weight: 600 !important;
+        color: #4B5563 !important; font-size: 12px !important; font-weight: 600 !important;
     }
-    [data-testid="stExpander"] summary:hover { color: #e6edf3 !important; }
+    [data-testid="stExpander"] summary:hover { color: #1E1B4B !important; }
     [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
-        border-top: 1px solid #21262d !important; padding-top: 12px !important;
+        border-top: 1px solid #EDE9FE !important; padding-top: 12px !important;
     }
 
     /* ── Dataframe inside canvas ── */
     [data-testid="stDataFrame"] {
-        border: 1px solid #21262d !important;
+        border: 1px solid #E5E7EB !important;
         border-radius: 10px !important;
         overflow: hidden;
+    }
+
+    /* ── Status widget ── */
+    [data-testid="stStatusWidget"] {
+        background: #FFFFFF !important;
+        border: 1px solid #DDD6FE !important;
+        border-radius: 10px !important;
+        color: #4C1D95 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -380,14 +396,14 @@ if "pred_artifact" not in st.session_state:
 
 # ── Shared chart style ──────────────────────────────────────────────────────────
 CHART_BASE = dict(
-    paper_bgcolor="#161b22",
-    plot_bgcolor="#161b22",
-    font_color="#8b949e",
-    title_font_color="#f0f6fc",
+    paper_bgcolor="#FFFFFF",
+    plot_bgcolor="#FFFFFF",
+    font_color="#6B7280",
+    title_font_color="#1E1B4B",
     title_font_size=13,
     margin=dict(l=10, r=10, t=38, b=10),
     showlegend=False,
-    hoverlabel=dict(bgcolor="#21262d", font_color="#e6edf3", bordercolor="#30363d"),
+    hoverlabel=dict(bgcolor="#F5F3FF", font_color="#1E1B4B", bordercolor="#DDD6FE"),
 )
 
 
@@ -431,10 +447,10 @@ def load_agents(_version: str = _AGENT_VERSION, _mtime: float = 0.0):
 with st.sidebar:
     st.markdown("""
     <div style="padding: 6px 0 14px 0;">
-        <div style="font-size: 17px; font-weight: 700; color: #f0f6fc; letter-spacing: -0.3px;">
+        <div style="font-size: 17px; font-weight: 700; color: #1E1B4B; letter-spacing: -0.3px;">
             📊 AI Data Dept.
         </div>
-        <div style="font-size: 11px; color: #8b949e; margin-top: 3px; letter-spacing: 0.3px;">
+        <div style="font-size: 11px; color: #7C3AED; margin-top: 3px; letter-spacing: 0.3px;">
             Retail Intelligence Platform
         </div>
     </div>
@@ -481,7 +497,7 @@ with st.sidebar:
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown('<div class="section-label">Dataset</div>', unsafe_allow_html=True)
     st.markdown(f"""
-    <div style="color: #8b949e; font-size: 12px; line-height: 2;">
+    <div style="color: #5B21B6; font-size: 12px; line-height: 2;">
         📄 &nbsp;mixed_online_retail.csv<br>
         🗂 &nbsp;{len(df):,} records loaded<br>
         🌍 &nbsp;UK Online Retail
@@ -519,18 +535,19 @@ def _render_canvas(artifact: dict | None, empty_hint: str = "Ask a question to g
     # ── Canvas header ─────────────────────────────────────────────────────────
     st.markdown(f"""
     <div style="
-        background: #161b22;
-        border: 1px solid #21262d;
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
         border-radius: 14px;
         padding: 20px 24px 0 24px;
         min-height: calc(100vh - 120px);
         position: sticky;
         top: 0.5rem;
+        box-shadow: 0 1px 4px rgba(109,40,217,0.07);
     ">
         <div class="canvas-header">
             <div>
                 <div class="canvas-title">🤖 {agent}</div>
-                <div style="color: #484f58; font-size: 11px; margin-top: 3px; font-style: italic;">
+                <div style="color: #9CA3AF; font-size: 11px; margin-top: 3px; font-style: italic;">
                     "{query[:80]}{'…' if len(query) > 80 else ''}"
                 </div>
             </div>
@@ -548,7 +565,7 @@ def _render_canvas(artifact: dict | None, empty_hint: str = "Ask a question to g
     if content:
         st.markdown(f"""
         <div style="
-            color: #e6edf3;
+            color: #1E1B4B;
             font-size: 14px;
             line-height: 1.7;
             padding: 12px 0 20px 0;
@@ -568,10 +585,10 @@ if st.session_state.page == "📊 Dashboard":
     st.markdown("""
     <div class="main-header">
         <div style="position: relative; z-index: 1;">
-            <div style="color: #f0f6fc; font-size: 20px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 3px;">
+            <div style="color: #1E1B4B; font-size: 20px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 3px;">
                 📊 Dashboard
             </div>
-            <div style="color: #8b949e; font-size: 12px; letter-spacing: 0.2px;">
+            <div style="color: #7C3AED; font-size: 12px; letter-spacing: 0.2px;">
                 Real-time retail analytics powered by autonomous AI agents
             </div>
         </div>
@@ -608,19 +625,19 @@ if st.session_state.page == "📊 Dashboard":
             fig = px.area(
                 monthly_df, x="Month", y="Revenue",
                 title="Monthly Revenue",
-                color_discrete_sequence=["#1f6feb"],
+                color_discrete_sequence=["#7C3AED"],
                 template="plotly_dark",
             )
             fig.update_layout(
                 **CHART_BASE,
                 height=380,
-                xaxis=dict(gridcolor="#21262d", showgrid=True, tickfont=dict(size=10)),
-                yaxis=dict(gridcolor="#21262d", showgrid=True, tickprefix="£", tickfont=dict(size=10)),
+                xaxis=dict(gridcolor="#E5E7EB", showgrid=True, tickfont=dict(size=10)),
+                yaxis=dict(gridcolor="#E5E7EB", showgrid=True, tickprefix="£", tickfont=dict(size=10)),
             )
             fig.update_traces(
                 fill="tozeroy",
-                line_color="#1f6feb",
-                fillcolor="rgba(31,111,235,0.10)",
+                line_color="#7C3AED",
+                fillcolor="rgba(124,58,237,0.08)",
                 hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra></extra>",
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -634,14 +651,14 @@ if st.session_state.page == "📊 Dashboard":
                 orientation="h",
                 title="Top 5 Countries by Revenue",
                 color="Revenue",
-                color_continuous_scale=["#21262d", "#1f6feb"],
+                color_continuous_scale=["#EDE9FE", "#6D28D9"],
                 template="plotly_dark",
             )
             fig2.update_layout(
                 **CHART_BASE,
                 height=380,
-                xaxis=dict(gridcolor="#21262d", tickprefix="£", tickfont=dict(size=10)),
-                yaxis=dict(gridcolor="#21262d", tickfont=dict(size=11)),
+                xaxis=dict(gridcolor="#E5E7EB", tickprefix="£", tickfont=dict(size=10)),
+                yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=11)),
                 coloraxis_showscale=False,
             )
             fig2.update_traces(hovertemplate="<b>%{y}</b><br>£%{x:,.0f}<extra></extra>")
@@ -657,14 +674,14 @@ if st.session_state.page == "📊 Dashboard":
                 orientation="h",
                 title="Top 8 Products by Revenue",
                 color="Revenue",
-                color_continuous_scale=["#21262d", "#8b5cf6"],
+                color_continuous_scale=["#EDE9FE", "#7C3AED"],
                 template="plotly_dark",
             )
             fig3.update_layout(
                 **CHART_BASE,
                 height=380,
-                xaxis=dict(gridcolor="#21262d", tickprefix="£", tickfont=dict(size=10)),
-                yaxis=dict(gridcolor="#21262d", tickfont=dict(size=9)),
+                xaxis=dict(gridcolor="#E5E7EB", tickprefix="£", tickfont=dict(size=10)),
+                yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=9)),
                 coloraxis_showscale=False,
             )
             fig3.update_traces(hovertemplate="<b>%{y}</b><br>£%{x:,.0f}<extra></extra>")
@@ -680,20 +697,20 @@ if st.session_state.page == "📊 Dashboard":
                 hourly_df, x="Hour", y="Revenue",
                 title="Sales by Hour of Day",
                 color="Revenue",
-                color_continuous_scale=["#21262d", "#3fb950"],
+                color_continuous_scale=["#D1FAE5", "#059669"],
                 template="plotly_dark",
             )
             fig4.update_layout(
                 **CHART_BASE,
                 height=380,
                 xaxis=dict(
-                    gridcolor="#21262d",
+                    gridcolor="#E5E7EB",
                     categoryorder="array",
                     categoryarray=hourly_df["Hour"].tolist(),
                     tickfont=dict(size=10),
                     title="",
                 ),
-                yaxis=dict(gridcolor="#21262d", tickprefix="£", tickfont=dict(size=10), title=""),
+                yaxis=dict(gridcolor="#E5E7EB", tickprefix="£", tickfont=dict(size=10), title=""),
                 coloraxis_showscale=False,
             )
             fig4.update_traces(hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra></extra>")
@@ -787,7 +804,7 @@ elif st.session_state.page == "💬 AI Chat":
         # ── Suggestion chips ──────────────────────────────────────────────────
         if not any(m["role"] == "user" for m in st.session_state.messages):
             st.markdown("""
-            <div style="color: #8b949e; font-size: 12px; margin-bottom: 10px; line-height: 1.6;">
+            <div style="color: #6B7280; font-size: 12px; margin-bottom: 10px; line-height: 1.6;">
                 Try a suggestion:
             </div>""", unsafe_allow_html=True)
             suggestions = [
@@ -1055,9 +1072,9 @@ elif st.session_state.page == "🔮 Prediction":
                         x=hist_df["month"], y=hist_df["revenue"],
                         mode="lines",
                         name="Historical",
-                        line=dict(color="#1f6feb", width=2.5),
+                        line=dict(color="#7C3AED", width=2.5),
                         fill="tozeroy",
-                        fillcolor="rgba(31,111,235,0.10)",
+                        fillcolor="rgba(124,58,237,0.08)",
                         hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra>Historical</extra>",
                     ))
 
@@ -1067,8 +1084,8 @@ elif st.session_state.page == "🔮 Prediction":
                         x=fcast_x, y=fcast_y,
                         mode="lines+markers",
                         name="Forecast",
-                        line=dict(color="#8b5cf6", width=2.5, dash="dash"),
-                        marker=dict(size=8, color="#8b5cf6", symbol="circle"),
+                        line=dict(color="#6D28D9", width=2.5, dash="dash"),
+                        marker=dict(size=8, color="#6D28D9", symbol="circle"),
                         hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra>Forecast</extra>",
                     ))
 
@@ -1078,7 +1095,7 @@ elif st.session_state.page == "🔮 Prediction":
                             text=f"£{row['revenue']:,.0f}",
                             showarrow=False,
                             yshift=14,
-                            font=dict(size=10, color="#c9d1d9"),
+                            font=dict(size=10, color="#4C1D95"),
                         )
 
                     last_hist_month = hist_df["month"].iloc[-1]
@@ -1087,7 +1104,7 @@ elif st.session_state.page == "🔮 Prediction":
                         xref="x", yref="paper",
                         x0=last_hist_month, x1=last_hist_month,
                         y0=0, y1=1,
-                        line=dict(dash="dot", color="#484f58", width=1.5),
+                        line=dict(dash="dot", color="#DDD6FE", width=1.5),
                     )
                     fig_fc.add_annotation(
                         x=last_hist_month, y=1,
@@ -1096,7 +1113,7 @@ elif st.session_state.page == "🔮 Prediction":
                         showarrow=False,
                         xanchor="left",
                         yanchor="top",
-                        font=dict(size=10, color="#8b949e"),
+                        font=dict(size=10, color="#9CA3AF"),
                     )
 
                     slope = forecast_data.get("monthly_slope_gbp", 0)
@@ -1114,8 +1131,8 @@ elif st.session_state.page == "🔮 Prediction":
                             font=dict(size=11, color="#8b949e"),
                             bgcolor="rgba(0,0,0,0)",
                         ),
-                        xaxis=dict(gridcolor="#21262d", tickfont=dict(size=10), title=""),
-                        yaxis=dict(gridcolor="#21262d", tickprefix="£", tickfont=dict(size=10), title=""),
+                        xaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=10), title=""),
+                        yaxis=dict(gridcolor="#E5E7EB", tickprefix="£", tickfont=dict(size=10), title=""),
                         title=dict(text=f"Last 12 months + 3-month linear forecast  ·  {trend_label}", font=dict(size=11, color="#8b949e")),
                     )
                     st.plotly_chart(fig_fc, use_container_width=True)
@@ -1133,11 +1150,11 @@ elif st.session_state.page == "🔮 Prediction":
                     values=[churn_data["at_risk_customers"], churn_data["healthy_customers"]],
                     hole=0.62,
                     marker=dict(
-                        colors=["#f85149", "#3fb950"],
-                        line=dict(color="#161b22", width=3),
+                        colors=["#F87171", "#34D399"],
+                        line=dict(color="#FFFFFF", width=3),
                     ),
                     textinfo="percent",
-                    textfont=dict(size=13, color="#e6edf3"),
+                    textfont=dict(size=13, color="#1E1B4B"),
                     hovertemplate="<b>%{label}</b><br>%{value:,} customers (%{percent})<extra></extra>",
                     sort=False,
                 ))
@@ -1145,7 +1162,7 @@ elif st.session_state.page == "🔮 Prediction":
                     text=f"<b>{churn_data['churn_risk_pct']}%</b><br><span style='font-size:11px'>at risk</span>",
                     x=0.5, y=0.5,
                     showarrow=False,
-                    font=dict(size=20, color="#f0f6fc"),
+                    font=dict(size=20, color="#1E1B4B"),
                     align="center",
                 )
                 fig_donut.update_layout(
@@ -1178,12 +1195,12 @@ elif st.session_state.page == "🔮 Prediction":
                     orientation="h",
                     marker=dict(
                         color=g_df["growth_pct"],
-                        colorscale=[[0, "#1a3a2a"], [1, "#2ecc71"]],
+                        colorscale=[[0, "#D1FAE5"], [1, "#059669"]],
                         line=dict(color="rgba(0,0,0,0)"),
                     ),
                     text=[f"+{v:.0f}%" for v in g_df["growth_pct"]],
                     textposition="outside",
-                    textfont=dict(size=10, color="#c9d1d9"),
+                    textfont=dict(size=10, color="#374151"),
                     hovertemplate=(
                         "<b>%{y}</b><br>"
                         "Growth: +%{x:.1f}%<br>"
@@ -1195,8 +1212,8 @@ elif st.session_state.page == "🔮 Prediction":
                 fig_growth.update_layout(
                     **CHART_BASE,
                     height=300,
-                    xaxis=dict(gridcolor="#21262d", ticksuffix="%", tickfont=dict(size=10), title=""),
-                    yaxis=dict(gridcolor="#21262d", tickfont=dict(size=9), title=""),
+                    xaxis=dict(gridcolor="#E5E7EB", ticksuffix="%", tickfont=dict(size=10), title=""),
+                    yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=9), title=""),
                 )
                 st.plotly_chart(fig_growth, use_container_width=True)
             elif growth_data and "error" in growth_data[0]:
@@ -1213,12 +1230,12 @@ elif st.session_state.page == "🔮 Prediction":
                     orientation="h",
                     marker=dict(
                         color=s_df["decline_pct"],
-                        colorscale=[[0, "#1a0a0a"], [1, "#f85149"]],
+                        colorscale=[[0, "#FEE2E2"], [1, "#DC2626"]],
                         line=dict(color="rgba(0,0,0,0)"),
                     ),
                     text=[f"-{v:.0f}%" for v in s_df["decline_pct"]],
                     textposition="outside",
-                    textfont=dict(size=10, color="#c9d1d9"),
+                    textfont=dict(size=10, color="#374151"),
                     hovertemplate=(
                         "<b>%{y}</b><br>"
                         "Decline: -%{x:.1f}%<br>"
@@ -1230,8 +1247,8 @@ elif st.session_state.page == "🔮 Prediction":
                 fig_slow.update_layout(
                     **CHART_BASE,
                     height=300,
-                    xaxis=dict(gridcolor="#21262d", ticksuffix="%", tickfont=dict(size=10), title=""),
-                    yaxis=dict(gridcolor="#21262d", tickfont=dict(size=9), title=""),
+                    xaxis=dict(gridcolor="#E5E7EB", ticksuffix="%", tickfont=dict(size=10), title=""),
+                    yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=9), title=""),
                 )
                 st.plotly_chart(fig_slow, use_container_width=True)
             elif slow_data and "error" in slow_data[0]:
@@ -1318,9 +1335,9 @@ elif st.session_state.page == "🔮 Prediction":
                         x=hist_df_ml["month"], y=hist_df_ml["revenue"],
                         mode="lines",
                         name="Historical",
-                        line=dict(color="#1f6feb", width=2.5),
+                        line=dict(color="#7C3AED", width=2.5),
                         fill="tozeroy",
-                        fillcolor="rgba(31,111,235,0.08)",
+                        fillcolor="rgba(124,58,237,0.06)",
                         hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra>Historical</extra>",
                     ))
 
@@ -1334,7 +1351,7 @@ elif st.session_state.page == "🔮 Prediction":
                         x=pd.concat([fcast_x_all, fcast_x_all.iloc[::-1]]),
                         y=pd.concat([fcast_hi, fcast_lo.iloc[::-1]]),
                         fill="toself",
-                        fillcolor="rgba(139,92,246,0.15)",
+                        fillcolor="rgba(109,40,217,0.10)",
                         line=dict(color="rgba(0,0,0,0)"),
                         name="95% CI",
                         hoverinfo="skip",
@@ -1344,8 +1361,8 @@ elif st.session_state.page == "🔮 Prediction":
                         x=fcast_x_all, y=fcast_y_all,
                         mode="lines+markers",
                         name="Prophet Forecast",
-                        line=dict(color="#8b5cf6", width=2.5, dash="dash"),
-                        marker=dict(size=8, color="#8b5cf6"),
+                        line=dict(color="#6D28D9", width=2.5, dash="dash"),
+                        marker=dict(size=8, color="#6D28D9"),
                         hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra>Forecast</extra>",
                     ))
 
@@ -1357,8 +1374,8 @@ elif st.session_state.page == "🔮 Prediction":
                             font=dict(size=11, color="#8b949e"),
                             bgcolor="rgba(0,0,0,0)",
                         ),
-                        xaxis=dict(gridcolor="#21262d", tickfont=dict(size=10), title=""),
-                        yaxis=dict(gridcolor="#21262d", tickprefix="£", tickfont=dict(size=10), title=""),
+                        xaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=10), title=""),
+                        yaxis=dict(gridcolor="#E5E7EB", tickprefix="£", tickfont=dict(size=10), title=""),
                         title=dict(
                             text=f"{forecast_data.get('model', 'Prophet')} · Shaded = 95% confidence interval",
                             font=dict(size=11, color="#8b949e"),
@@ -1381,15 +1398,15 @@ elif st.session_state.page == "🔮 Prediction":
                 fig_hist.add_trace(go.Histogram(
                     x=hr_df["churn_probability"],
                     nbinsx=15,
-                    marker=dict(color="#f85149", line=dict(color="#161b22", width=0.5)),
+                    marker=dict(color="#F87171", line=dict(color="#FFFFFF", width=0.5)),
                     name="Churn Probability",
                     hovertemplate="Score: %{x:.0f}%<br>Customers: %{y}<extra></extra>",
                 ))
                 fig_hist.update_layout(
                     **CHART_BASE,
                     height=260,
-                    xaxis=dict(gridcolor="#21262d", title="Churn Probability (%)", tickfont=dict(size=10)),
-                    yaxis=dict(gridcolor="#21262d", title="# Customers", tickfont=dict(size=10)),
+                    xaxis=dict(gridcolor="#E5E7EB", title="Churn Probability (%)", tickfont=dict(size=10)),
+                    yaxis=dict(gridcolor="#E5E7EB", title="# Customers", tickfont=dict(size=10)),
                     title=dict(
                         text=f"Top {len(hr_df)} at-risk · Random Forest · "
                              f"Accuracy {ml_churn_data.get('model_metadata', {}).get('accuracy', '?')}%",
@@ -1407,19 +1424,19 @@ elif st.session_state.page == "🔮 Prediction":
                         orientation="h",
                         marker=dict(
                             color=fi_df["importance_pct"],
-                            colorscale=[[0, "#3a1a0a"], [1, "#f78166"]],
+                            colorscale=[[0, "#FEE2E2"], [1, "#EF4444"]],
                             line=dict(color="rgba(0,0,0,0)"),
                         ),
                         text=[f"{v:.1f}%" for v in fi_df["importance_pct"]],
                         textposition="outside",
-                        textfont=dict(size=10, color="#c9d1d9"),
+                        textfont=dict(size=10, color="#374151"),
                         hovertemplate="<b>%{y}</b>: %{x:.1f}%<extra></extra>",
                     ))
                     fig_fi.update_layout(
                         **CHART_BASE,
                         height=210,
-                        xaxis=dict(gridcolor="#21262d", ticksuffix="%", tickfont=dict(size=10), title="Importance %"),
-                        yaxis=dict(gridcolor="#21262d", tickfont=dict(size=10), title=""),
+                        xaxis=dict(gridcolor="#E5E7EB", ticksuffix="%", tickfont=dict(size=10), title="Importance %"),
+                        yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=10), title=""),
                         title=dict(text="Feature Importance", font=dict(size=11, color="#8b949e")),
                     )
                     st.plotly_chart(fig_fi, use_container_width=True)
@@ -1432,12 +1449,12 @@ elif st.session_state.page == "🔮 Prediction":
                 seg_df = pd.DataFrame(ml_seg_data["cluster_summary"])
 
                 _SEG_COLORS = {
-                    "Champions":       "#3fb950",
-                    "Loyal Customers": "#1f6feb",
-                    "At-Risk":         "#f0883e",
-                    "Hibernating":     "#f85149",
-                    "Lost":            "#8b949e",
-                    "New Customers":   "#8b5cf6",
+                    "Champions":       "#059669",
+                    "Loyal Customers": "#6D28D9",
+                    "At-Risk":         "#F59E0B",
+                    "Hibernating":     "#DC2626",
+                    "Lost":            "#9CA3AF",
+                    "New Customers":   "#7C3AED",
                 }
 
                 fig_seg = go.Figure()
@@ -1452,11 +1469,11 @@ elif st.session_state.page == "🔮 Prediction":
                             size=size,
                             color=color,
                             opacity=0.85,
-                            line=dict(color="#161b22", width=1.5),
+                            line=dict(color="#FFFFFF", width=1.5),
                         ),
                         text=[row["label"]],
                         textposition="top center",
-                        textfont=dict(size=10, color="#e6edf3"),
+                        textfont=dict(size=10, color="#1E1B4B"),
                         name=row["label"],
                         hovertemplate=(
                             f"<b>{row['label']}</b><br>"
@@ -1473,8 +1490,8 @@ elif st.session_state.page == "🔮 Prediction":
                 fig_seg.update_layout(
                     **{**CHART_BASE, "showlegend": False},
                     height=380,
-                    xaxis=dict(gridcolor="#21262d", title="Avg Recency (days — lower = more recent)", tickfont=dict(size=10)),
-                    yaxis=dict(gridcolor="#21262d", title="Avg Order Frequency", tickfont=dict(size=10)),
+                    xaxis=dict(gridcolor="#E5E7EB", title="Avg Recency (days — lower = more recent)", tickfont=dict(size=10)),
+                    yaxis=dict(gridcolor="#E5E7EB", title="Avg Order Frequency", tickfont=dict(size=10)),
                     title=dict(
                         text=f"KMeans RFM · {n_cl} clusters · Silhouette score: {sil:.3f}  (bubble size ∝ avg spend)",
                         font=dict(size=11, color="#8b949e"),
