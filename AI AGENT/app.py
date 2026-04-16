@@ -213,8 +213,54 @@ st.markdown("""
 
     hr { border-color: #21262d !important; }
     .stSpinner > div { border-top-color: #1f6feb !important; }
+
+    /* ── Sidebar navigation radio ── */
+    [data-testid="stSidebar"] [data-testid="stRadio"] > label { display: none; }
+    [data-testid="stSidebar"] [data-testid="stRadio"] > div {
+        gap: 2px; flex-direction: column;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] > div > label {
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        color: #8b949e;
+        font-size: 13px;
+        font-weight: 500;
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+        display: flex; align-items: center; gap: 6px;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] > div > label:hover {
+        background: rgba(31,111,235,0.10);
+        border-color: #30363d;
+        color: #e6edf3;
+    }
+    [data-testid="stSidebar"] [data-testid="stRadio"] > div > label:has(input:checked) {
+        background: rgba(31,111,235,0.15);
+        border-color: #1f6feb;
+        color: #79c0ff;
+    }
+
+    /* ── Expander chrome ── */
+    [data-testid="stExpander"] {
+        background: #161b22 !important;
+        border: 1px solid #21262d !important;
+        border-radius: 10px !important;
+    }
+    [data-testid="stExpander"] summary {
+        color: #8b949e !important; font-size: 12px !important; font-weight: 600 !important;
+    }
+    [data-testid="stExpander"] summary:hover { color: #e6edf3 !important; }
+    [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+        border-top: 1px solid #21262d !important; padding-top: 12px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# ── Page navigation state ─────────────────────────────────────────────────────
+if "page" not in st.session_state:
+    st.session_state.page = "📊 Dashboard"
 
 # ── Shared chart style ──────────────────────────────────────────────────────────
 CHART_BASE = dict(
@@ -232,7 +278,7 @@ CHART_BASE = dict(
 # ── Load agents ─────────────────────────────────────────────────────────────────
 # Bump this string whenever Manager.py / analyst files change — forces Streamlit
 # to discard the cached ManagerAgent and rebuild from the current code.
-_AGENT_VERSION = "v16"  # bump when Manager.py / analyst files change
+_AGENT_VERSION = "v17"  # bump when Manager.py / analyst files change
 
 def _csv_mtime() -> float:
     """Return the modification time of the CSV so the cache key tracks file changes."""
@@ -282,6 +328,17 @@ with st.sidebar:
         </div>
     </div>
     """, unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    st.markdown('<div class="section-label">Navigation</div>', unsafe_allow_html=True)
+    _nav_options = ["📊 Dashboard", "💬 AI Chat", "🔮 Prediction"]
+    _selected = st.radio(
+        "nav", _nav_options,
+        index=_nav_options.index(st.session_state.get("page", "📊 Dashboard")),
+        label_visibility="collapsed",
+        key="nav_radio",
+    )
+    st.session_state.page = _selected
     st.markdown("<hr>", unsafe_allow_html=True)
 
     with st.spinner("Initializing agents..."):
@@ -334,14 +391,11 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Tabs ─────────────────────────────────────────────────────────────────────────
-tab_dash, tab_chat, tab_pred = st.tabs(["📊  Dashboard", "💬  AI Chat", "🔮  Prediction"])
-
 
 # ════════════════════════════════════════════════════════
-# TAB 1 — DASHBOARD
+# PAGE 1 — DASHBOARD
 # ════════════════════════════════════════════════════════
-with tab_dash:
+if st.session_state.page == "📊 Dashboard":
 
     # ── KPI row ──────────────────────────────────────────────────────────────────
     total_rev   = sales.get_total_revenue()
@@ -362,10 +416,11 @@ with tab_dash:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Charts row 1 ─────────────────────────────────────────────────────────────
-    col1, col2 = st.columns([3, 2])
+    dash_t1, dash_t2, dash_t3, dash_t4 = st.tabs([
+        "📈 Revenue Trend", "🌍 Top Countries", "📦 Top Products", "🕐 Hourly Sales",
+    ])
 
-    with col1:
+    with dash_t1:
         monthly_data = sales.get_monthly_revenue()
         if monthly_data:
             monthly_df = pd.DataFrame(list(monthly_data.items()), columns=["Month", "Revenue"])
@@ -377,6 +432,7 @@ with tab_dash:
             )
             fig.update_layout(
                 **CHART_BASE,
+                height=380,
                 xaxis=dict(gridcolor="#21262d", showgrid=True, tickfont=dict(size=10)),
                 yaxis=dict(gridcolor="#21262d", showgrid=True, tickprefix="£", tickfont=dict(size=10)),
             )
@@ -388,7 +444,7 @@ with tab_dash:
             )
             st.plotly_chart(fig, width='stretch')
 
-    with col2:
+    with dash_t2:
         top_countries = sales.get_top_countries_by_revenue(limit=5)
         if top_countries:
             countries_df = pd.DataFrame(list(top_countries.items()), columns=["Country", "Revenue"])
@@ -402,6 +458,7 @@ with tab_dash:
             )
             fig2.update_layout(
                 **CHART_BASE,
+                height=380,
                 xaxis=dict(gridcolor="#21262d", tickprefix="£", tickfont=dict(size=10)),
                 yaxis=dict(gridcolor="#21262d", tickfont=dict(size=11)),
                 coloraxis_showscale=False,
@@ -409,10 +466,7 @@ with tab_dash:
             fig2.update_traces(hovertemplate="<b>%{y}</b><br>£%{x:,.0f}<extra></extra>")
             st.plotly_chart(fig2, width='stretch')
 
-    # ── Charts row 2 ─────────────────────────────────────────────────────────────
-    col3, col4 = st.columns([2, 3])
-
-    with col3:
+    with dash_t3:
         top_products = sales.get_top_products_by_revenue(limit=8)
         if top_products:
             prod_df = pd.DataFrame(list(top_products.items()), columns=["Product", "Revenue"])
@@ -427,7 +481,7 @@ with tab_dash:
             )
             fig3.update_layout(
                 **CHART_BASE,
-                height=340,
+                height=380,
                 xaxis=dict(gridcolor="#21262d", tickprefix="£", tickfont=dict(size=10)),
                 yaxis=dict(gridcolor="#21262d", tickfont=dict(size=9)),
                 coloraxis_showscale=False,
@@ -435,7 +489,7 @@ with tab_dash:
             fig3.update_traces(hovertemplate="<b>%{y}</b><br>£%{x:,.0f}<extra></extra>")
             st.plotly_chart(fig3, width='stretch')
 
-    with col4:
+    with dash_t4:
         hourly = sales.get_hourly_sales_distribution()
         if hourly and "error" not in hourly:
             hourly_df = pd.DataFrame(list(hourly.items()), columns=["Hour", "Revenue"])
@@ -450,7 +504,7 @@ with tab_dash:
             )
             fig4.update_layout(
                 **CHART_BASE,
-                height=340,
+                height=380,
                 xaxis=dict(
                     gridcolor="#21262d",
                     categoryorder="array",
@@ -466,9 +520,9 @@ with tab_dash:
 
 
 # ════════════════════════════════════════════════════════
-# TAB 2 — AI CHAT
+# PAGE 2 — AI CHAT
 # ════════════════════════════════════════════════════════
-with tab_chat:
+elif st.session_state.page == "💬 AI Chat":
 
     MAX_HISTORY = 50
 
@@ -546,7 +600,7 @@ with tab_chat:
         agent_label = "AI Analyst"
         history = st.session_state.messages[:-1]  # exclude the just-appended user msg
 
-        with st.status("🧠 Manager Agent is analyzing your request...", expanded=True) as status_box:
+        with st.status("🧠 Manager Agent is analyzing your request...", expanded=False) as status_box:
             for step in manager.handle_request(user_input, history=history):
                 if step["type"] == "status":
                     status_box.update(label=step["message"])
@@ -590,9 +644,9 @@ with tab_chat:
 
 
 # ════════════════════════════════════════════════════════
-# TAB 3 — PREDICTION AGENT (Rey)
+# PAGE 3 — PREDICTION AGENT (Rey)
 # ════════════════════════════════════════════════════════
-with tab_pred:
+elif st.session_state.page == "🔮 Prediction":
 
     # ── Pre-compute all prediction data once per session ─────────────────────────
     pa = manager.prediction_analyst
@@ -611,375 +665,373 @@ with tab_pred:
         _AGENT_VERSION, _csv_mtime()
     )
 
-    # ── Ask Rey — Predictive AI Chat ────────────────────────────────────────────
-    st.markdown('<div class="section-label">Ask Rey — Predictive AI Chat</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div style="color: #8b949e; font-size: 12px; margin-bottom: 14px; line-height: 1.6;">
-        Ask deeper questions: CLV for a specific customer, product demand trends, custom forecasts, churn lists.
-    </div>""", unsafe_allow_html=True)
+    pred_t1, pred_t2 = st.tabs(["💬 Ask Rey", "📊 Live Metrics"])
 
-    # ── Prediction chat state ────────────────────────────────────────────────────
-    MAX_PRED_HISTORY = 50
+    with pred_t1:
 
-    if "pred_messages" not in st.session_state:
-        st.session_state.pred_messages = []
-        st.session_state.pred_messages.append({
-            "role": "assistant",
-            "agent": "Prediction Agent (Rey)",
-            "content": (
-                "👋 Hi, I'm **Rey** — your Predictive Analytics Specialist.\n\n"
-                "I can help you with:\n"
-                "- 📉 **Churn risk** — which customers are likely to leave\n"
-                "- 📈 **Revenue forecasts** — what the next months might look like\n"
-                "- 🚀 **High-growth products** — what's taking off\n"
-                "- 🐢 **Slow movers** — what's declining and should be reviewed\n"
-                "- 💰 **Customer CLV** — projected lifetime value per customer\n"
-                "- 🔄 **Repeat purchase probability** — how sticky your buyers are\n\n"
-                "What would you like to predict today?"
-            ),
-            "charts": [],
-        })
+        # ── Ask Rey — Predictive AI Chat ────────────────────────────────────────
+        st.markdown('<div class="section-label">Ask Rey — Predictive AI Chat</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="color: #8b949e; font-size: 12px; margin-bottom: 14px; line-height: 1.6;">
+            Ask deeper questions: CLV for a specific customer, product demand trends, custom forecasts, churn lists.
+        </div>""", unsafe_allow_html=True)
 
-    if len(st.session_state.pred_messages) > MAX_PRED_HISTORY:
-        st.session_state.pred_messages = st.session_state.pred_messages[-MAX_PRED_HISTORY:]
+        # ── Prediction chat state ────────────────────────────────────────────────
+        MAX_PRED_HISTORY = 50
 
-    # ── Suggestion chips (shown until first user message) ────────────────────────
-    if not any(m["role"] == "user" for m in st.session_state.pred_messages):
-        pred_suggestions = [
-            "Who are our top at-risk customers?",
-            "Which products are declining in demand?",
-            "Forecast revenue for the next 6 months",
-            "What is the CLV of customer 17850?",
-            "Show product demand trend for WHITE HANGING HEART T-LIGHT HOLDER",
-            "What is the repeat purchase probability?",
-        ]
-        c1, c2, c3 = st.columns(3)
-        cols_cycle = [c1, c2, c3]
-        for i, s in enumerate(pred_suggestions):
-            if cols_cycle[i % 3].button(s, key=f"pred_sugg_{i}"):
-                st.session_state.pred_pending = s
-                st.rerun()
+        if "pred_messages" not in st.session_state:
+            st.session_state.pred_messages = []
+            st.session_state.pred_messages.append({
+                "role": "assistant",
+                "agent": "Prediction Agent (Rey)",
+                "content": (
+                    "👋 Hi, I'm **Rey** — your Predictive Analytics Specialist.\n\n"
+                    "I can help you with:\n"
+                    "- 📉 **Churn risk** — which customers are likely to leave\n"
+                    "- 📈 **Revenue forecasts** — what the next months might look like\n"
+                    "- 🚀 **High-growth products** — what's taking off\n"
+                    "- 🐢 **Slow movers** — what's declining and should be reviewed\n"
+                    "- 💰 **Customer CLV** — projected lifetime value per customer\n"
+                    "- 🔄 **Repeat purchase probability** — how sticky your buyers are\n\n"
+                    "What would you like to predict today?"
+                ),
+                "charts": [],
+            })
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        if len(st.session_state.pred_messages) > MAX_PRED_HISTORY:
+            st.session_state.pred_messages = st.session_state.pred_messages[-MAX_PRED_HISTORY:]
 
-    # ── Render helper ────────────────────────────────────────────────────────────
-    def _render_pred_msg(msg: dict) -> None:
-        agent_label = msg.get("agent", "Prediction Agent (Rey)")
-        with st.chat_message("assistant"):
-            st.caption(f"🔮 {agent_label}")
-            st.markdown(msg["content"])
-            for b64 in msg.get("charts", []):
-                img_bytes = base64.b64decode(b64)
-                st.image(img_bytes, width='stretch')
+        # ── Suggestion chips (shown until first user message) ────────────────────
+        if not any(m["role"] == "user" for m in st.session_state.pred_messages):
+            pred_suggestions = [
+                "Who are our top at-risk customers?",
+                "Which products are declining in demand?",
+                "Forecast revenue for the next 6 months",
+                "What is the CLV of customer 17850?",
+                "Show product demand trend for WHITE HANGING HEART T-LIGHT HOLDER",
+                "What is the repeat purchase probability?",
+            ]
+            c1, c2, c3 = st.columns(3)
+            cols_cycle = [c1, c2, c3]
+            for i, s in enumerate(pred_suggestions):
+                if cols_cycle[i % 3].button(s, key=f"pred_sugg_{i}"):
+                    st.session_state.pred_pending = s
+                    st.rerun()
 
-    # ── Chat history ─────────────────────────────────────────────────────────────
-    for msg in st.session_state.pred_messages:
-        if msg["role"] == "user":
-            with st.chat_message("user"):
-                st.write(msg["content"])
-        else:
-            _render_pred_msg(msg)
+            st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Request handler ───────────────────────────────────────────────────────────
-    def _process_pred_request(user_input: str) -> None:
-        history = st.session_state.pred_messages[:-1]
-        response = ""
-        agent_label = "Prediction Agent (Rey)"
+        # ── Render helper ────────────────────────────────────────────────────────
+        def _render_pred_msg(msg: dict) -> None:
+            agent_label = msg.get("agent", "Prediction Agent (Rey)")
+            with st.chat_message("assistant"):
+                st.caption(f"🔮 {agent_label}")
+                st.markdown(msg["content"])
+                for b64 in msg.get("charts", []):
+                    img_bytes = base64.b64decode(b64)
+                    st.image(img_bytes, width='stretch')
 
-        with st.status("🔮 Rey is analysing your request...", expanded=True) as status_box:
-            for step in manager.handle_prediction_request(user_input, history=history):
-                if step["type"] == "status":
-                    status_box.update(label=step["message"])
-                elif step["type"] == "result":
-                    response = step["content"]
-                    agent_label = step.get("agent_label", agent_label)
-            status_box.update(
-                label="✅ Prediction Agent (Rey) responded",
-                state="complete",
-                expanded=False,
+        # ── Chat history ─────────────────────────────────────────────────────────
+        for msg in st.session_state.pred_messages:
+            if msg["role"] == "user":
+                with st.chat_message("user"):
+                    st.write(msg["content"])
+            else:
+                _render_pred_msg(msg)
+
+        # ── Request handler ───────────────────────────────────────────────────────
+        def _process_pred_request(user_input: str) -> None:
+            history = st.session_state.pred_messages[:-1]
+            response = ""
+            agent_label = "Prediction Agent (Rey)"
+
+            with st.status("🔮 Rey is analysing your request...", expanded=False) as status_box:
+                for step in manager.handle_prediction_request(user_input, history=history):
+                    if step["type"] == "status":
+                        status_box.update(label=step["message"])
+                    elif step["type"] == "result":
+                        response = step["content"]
+                        agent_label = step.get("agent_label", agent_label)
+                status_box.update(
+                    label="✅ Prediction Agent (Rey) responded",
+                    state="complete",
+                    expanded=False,
+                )
+
+            charts = manager.get_pending_charts()
+            st.session_state.pred_messages.append(
+                {"role": "assistant", "content": response, "agent": agent_label, "charts": charts}
             )
 
-        charts = manager.get_pending_charts()
-        st.session_state.pred_messages.append(
-            {"role": "assistant", "content": response, "agent": agent_label, "charts": charts}
-        )
-
-    # ── Handle suggestion click ───────────────────────────────────────────────────
-    if "pred_pending" in st.session_state:
-        user_input = st.session_state.pop("pred_pending")
-        st.session_state.pred_messages.append({"role": "user", "content": user_input})
-        _process_pred_request(user_input)
-        st.rerun()
-
-    # ── Chat input ────────────────────────────────────────────────────────────────
-    if prompt := st.chat_input("Ask Rey about forecasts, churn, CLV, product trends...", key="pred_input"):
-        st.session_state.pred_messages.append({"role": "user", "content": prompt})
-        _process_pred_request(prompt)
-        st.rerun()
-
-    # ── Clear button ──────────────────────────────────────────────────────────────
-    if st.session_state.pred_messages:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🗑  Clear conversation", key="clear_pred"):
-            st.session_state.pred_messages = []
+        # ── Handle suggestion click ───────────────────────────────────────────────
+        if "pred_pending" in st.session_state:
+            user_input = st.session_state.pop("pred_pending")
+            st.session_state.pred_messages.append({"role": "user", "content": user_input})
+            _process_pred_request(user_input)
             st.rerun()
 
-    # ── Divider between chat and metrics dashboard ────────────────────────────────
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("<hr>", unsafe_allow_html=True)
+        # ── Chat input ────────────────────────────────────────────────────────────
+        if prompt := st.chat_input("Ask Rey about forecasts, churn, CLV, product trends...", key="pred_input"):
+            st.session_state.pred_messages.append({"role": "user", "content": prompt})
+            _process_pred_request(prompt)
+            st.rerun()
 
-    # ── Section header ───────────────────────────────────────────────────────────
-    st.markdown('<div class="section-label">Live Prediction Metrics</div>', unsafe_allow_html=True)
+        # ── Clear button ──────────────────────────────────────────────────────────
+        if st.session_state.pred_messages:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🗑  Clear conversation", key="clear_pred"):
+                st.session_state.pred_messages = []
+                st.rerun()
 
-    # ── KPI row ──────────────────────────────────────────────────────────────────
-    churn_pct    = churn_data.get("churn_risk_pct", 0.0) if "error" not in churn_data else None
-    at_risk_n    = churn_data.get("at_risk_customers", 0)  if "error" not in churn_data else None
-    healthy_n    = churn_data.get("healthy_customers", 0)  if "error" not in churn_data else None
-    total_cust   = churn_data.get("total_customers", 0)    if "error" not in churn_data else None
-    repeat_pct   = repeat_data.get("repeat_purchase_probability_pct", 0.0) if "error" not in repeat_data else None
-    avg_orders   = repeat_data.get("avg_orders_per_returning_customer", 0.0) if "error" not in repeat_data else None
+    with pred_t2:
 
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric(
-        "Churn Risk",
-        f"{churn_pct:.1f}%" if churn_pct is not None else "N/A",
-        f"{at_risk_n:,} of {total_cust:,} customers" if at_risk_n is not None else "",
-    )
-    k2.metric(
-        "At-Risk Customers",
-        f"{at_risk_n:,}" if at_risk_n is not None else "N/A",
-        "Inactive ≥ 90 days",
-    )
-    k3.metric(
-        "Repeat Purchase Rate",
-        f"{repeat_pct:.1f}%" if repeat_pct is not None else "N/A",
-        f"avg {avg_orders:.1f} orders / returner" if avg_orders is not None else "",
-    )
-    k4.metric(
-        "Healthy Customers",
-        f"{healthy_n:,}" if healthy_n is not None else "N/A",
-        "Active within 90 days",
-    )
+        # ── KPI row ──────────────────────────────────────────────────────────────
+        churn_pct    = churn_data.get("churn_risk_pct", 0.0) if "error" not in churn_data else None
+        at_risk_n    = churn_data.get("at_risk_customers", 0)  if "error" not in churn_data else None
+        healthy_n    = churn_data.get("healthy_customers", 0)  if "error" not in churn_data else None
+        total_cust   = churn_data.get("total_customers", 0)    if "error" not in churn_data else None
+        repeat_pct   = repeat_data.get("repeat_purchase_probability_pct", 0.0) if "error" not in repeat_data else None
+        avg_orders   = repeat_data.get("avg_orders_per_returning_customer", 0.0) if "error" not in repeat_data else None
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric(
+            "Churn Risk",
+            f"{churn_pct:.1f}%" if churn_pct is not None else "N/A",
+            f"{at_risk_n:,} of {total_cust:,} customers" if at_risk_n is not None else "",
+        )
+        k2.metric(
+            "At-Risk Customers",
+            f"{at_risk_n:,}" if at_risk_n is not None else "N/A",
+            "Inactive ≥ 90 days",
+        )
+        k3.metric(
+            "Repeat Purchase Rate",
+            f"{repeat_pct:.1f}%" if repeat_pct is not None else "N/A",
+            f"avg {avg_orders:.1f} orders / returner" if avg_orders is not None else "",
+        )
+        k4.metric(
+            "Healthy Customers",
+            f"{healthy_n:,}" if healthy_n is not None else "N/A",
+            "Active within 90 days",
+        )
 
-    # ── Charts row 1: Revenue Forecast + Churn Donut ─────────────────────────────
-    col_a, col_b = st.columns([3, 2])
+        st.markdown("<br>", unsafe_allow_html=True)
 
-    with col_a:
-        st.markdown('<div class="chart-title">Revenue Forecast</div>', unsafe_allow_html=True)
-        if "error" not in forecast_data:
-            # Historical monthly revenue (all months)
-            hist_raw = sales.get_monthly_revenue()
-            if isinstance(hist_raw, dict) and "error" not in hist_raw:
-                hist_df = (
-                    pd.DataFrame(list(hist_raw.items()), columns=["month", "revenue"])
-                    .sort_values("month")
-                )
-                # Keep last 12 months for readability
-                hist_df = hist_df.tail(12).copy()
+        # ── Charts row 1: Revenue Forecast + Churn Donut ─────────────────────────
+        col_a, col_b = st.columns([3, 2])
 
-                # Build forecast rows
-                fcast_dict = forecast_data.get("forecast", {})
-                fcast_df = pd.DataFrame(
-                    [{"month": m, "revenue": v} for m, v in fcast_dict.items()]
-                ).sort_values("month")
+        with col_a:
+            st.markdown('<div class="chart-title">Revenue Forecast</div>', unsafe_allow_html=True)
+            if "error" not in forecast_data:
+                # Historical monthly revenue (all months)
+                hist_raw = sales.get_monthly_revenue()
+                if isinstance(hist_raw, dict) and "error" not in hist_raw:
+                    hist_df = (
+                        pd.DataFrame(list(hist_raw.items()), columns=["month", "revenue"])
+                        .sort_values("month")
+                    )
+                    # Keep last 12 months for readability
+                    hist_df = hist_df.tail(12).copy()
 
-                # Bridge point: duplicate last historical point into forecast series
-                bridge = hist_df.iloc[[-1]].copy()
+                    # Build forecast rows
+                    fcast_dict = forecast_data.get("forecast", {})
+                    fcast_df = pd.DataFrame(
+                        [{"month": m, "revenue": v} for m, v in fcast_dict.items()]
+                    ).sort_values("month")
 
-                fig_fc = go.Figure()
+                    # Bridge point: duplicate last historical point into forecast series
+                    bridge = hist_df.iloc[[-1]].copy()
 
-                # Historical area trace
-                fig_fc.add_trace(go.Scatter(
-                    x=hist_df["month"], y=hist_df["revenue"],
-                    mode="lines",
-                    name="Historical",
-                    line=dict(color="#1f6feb", width=2.5),
-                    fill="tozeroy",
-                    fillcolor="rgba(31,111,235,0.10)",
-                    hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra>Historical</extra>",
-                ))
+                    fig_fc = go.Figure()
 
-                # Forecast dashed trace (bridge → forecast months)
-                fcast_x = pd.concat([bridge["month"], fcast_df["month"]])
-                fcast_y = pd.concat([bridge["revenue"], fcast_df["revenue"]])
-                fig_fc.add_trace(go.Scatter(
-                    x=fcast_x, y=fcast_y,
-                    mode="lines+markers",
-                    name="Forecast",
-                    line=dict(color="#8b5cf6", width=2.5, dash="dash"),
-                    marker=dict(size=8, color="#8b5cf6", symbol="circle"),
-                    hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra>Forecast</extra>",
-                ))
+                    # Historical area trace
+                    fig_fc.add_trace(go.Scatter(
+                        x=hist_df["month"], y=hist_df["revenue"],
+                        mode="lines",
+                        name="Historical",
+                        line=dict(color="#1f6feb", width=2.5),
+                        fill="tozeroy",
+                        fillcolor="rgba(31,111,235,0.10)",
+                        hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra>Historical</extra>",
+                    ))
 
-                # Annotate each forecast point with its value
-                for _, row in fcast_df.iterrows():
+                    # Forecast dashed trace (bridge → forecast months)
+                    fcast_x = pd.concat([bridge["month"], fcast_df["month"]])
+                    fcast_y = pd.concat([bridge["revenue"], fcast_df["revenue"]])
+                    fig_fc.add_trace(go.Scatter(
+                        x=fcast_x, y=fcast_y,
+                        mode="lines+markers",
+                        name="Forecast",
+                        line=dict(color="#8b5cf6", width=2.5, dash="dash"),
+                        marker=dict(size=8, color="#8b5cf6", symbol="circle"),
+                        hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra>Forecast</extra>",
+                    ))
+
+                    # Annotate each forecast point with its value
+                    for _, row in fcast_df.iterrows():
+                        fig_fc.add_annotation(
+                            x=row["month"], y=row["revenue"],
+                            text=f"£{row['revenue']:,.0f}",
+                            showarrow=False,
+                            yshift=14,
+                            font=dict(size=10, color="#c9d1d9"),
+                        )
+
+                    # Vertical divider between historical and forecast
+                    # add_vline chokes on string/category axes (tries int+str arithmetic
+                    # internally), so use add_shape + add_annotation instead.
+                    last_hist_month = hist_df["month"].iloc[-1]
+                    fig_fc.add_shape(
+                        type="line",
+                        xref="x", yref="paper",
+                        x0=last_hist_month, x1=last_hist_month,
+                        y0=0, y1=1,
+                        line=dict(dash="dot", color="#484f58", width=1.5),
+                    )
                     fig_fc.add_annotation(
-                        x=row["month"], y=row["revenue"],
-                        text=f"£{row['revenue']:,.0f}",
+                        x=last_hist_month, y=1,
+                        xref="x", yref="paper",
+                        text="Forecast →",
                         showarrow=False,
-                        yshift=14,
-                        font=dict(size=10, color="#c9d1d9"),
+                        xanchor="left",
+                        yanchor="top",
+                        font=dict(size=10, color="#8b949e"),
                     )
 
-                # Vertical divider between historical and forecast
-                # add_vline chokes on string/category axes (tries int+str arithmetic
-                # internally), so use add_shape + add_annotation instead.
-                last_hist_month = hist_df["month"].iloc[-1]
-                fig_fc.add_shape(
-                    type="line",
-                    xref="x", yref="paper",
-                    x0=last_hist_month, x1=last_hist_month,
-                    y0=0, y1=1,
-                    line=dict(dash="dot", color="#484f58", width=1.5),
-                )
-                fig_fc.add_annotation(
-                    x=last_hist_month, y=1,
-                    xref="x", yref="paper",
-                    text="Forecast →",
+                    slope = forecast_data.get("monthly_slope_gbp", 0)
+                    trend_label = (
+                        f"↑ Upward trend (+£{slope:,.0f}/mo)" if slope > 0
+                        else f"↓ Downward trend (£{slope:,.0f}/mo)" if slope < 0
+                        else "→ Flat trend"
+                    )
+
+                    fig_fc.update_layout(
+                        **{**CHART_BASE, "showlegend": True},
+                        height=320,
+                        legend=dict(
+                            orientation="h", x=0, y=1.12,
+                            font=dict(size=11, color="#8b949e"),
+                            bgcolor="rgba(0,0,0,0)",
+                        ),
+                        xaxis=dict(gridcolor="#21262d", tickfont=dict(size=10), title=""),
+                        yaxis=dict(gridcolor="#21262d", tickprefix="£", tickfont=dict(size=10), title=""),
+                        title=dict(text=f"Last 12 months + 3-month linear forecast  ·  {trend_label}", font=dict(size=11, color="#8b949e")),
+                    )
+                    st.plotly_chart(fig_fc, width='stretch')
+
+                    if forecast_data.get("outlier_warning"):
+                        st.warning(forecast_data["outlier_warning"], icon="⚠️")
+            else:
+                st.info(forecast_data.get("error", "Forecast unavailable."), icon="ℹ️")
+
+        with col_b:
+            st.markdown('<div class="chart-title">Churn Risk Breakdown</div>', unsafe_allow_html=True)
+            if "error" not in churn_data:
+                fig_donut = go.Figure(go.Pie(
+                    labels=["At-Risk", "Healthy"],
+                    values=[churn_data["at_risk_customers"], churn_data["healthy_customers"]],
+                    hole=0.62,
+                    marker=dict(
+                        colors=["#f85149", "#3fb950"],
+                        line=dict(color="#161b22", width=3),
+                    ),
+                    textinfo="percent",
+                    textfont=dict(size=13, color="#e6edf3"),
+                    hovertemplate="<b>%{label}</b><br>%{value:,} customers (%{percent})<extra></extra>",
+                    sort=False,
+                ))
+                fig_donut.add_annotation(
+                    text=f"<b>{churn_data['churn_risk_pct']}%</b><br><span style='font-size:11px'>at risk</span>",
+                    x=0.5, y=0.5,
                     showarrow=False,
-                    xanchor="left",
-                    yanchor="top",
-                    font=dict(size=10, color="#8b949e"),
+                    font=dict(size=20, color="#f0f6fc"),
+                    align="center",
                 )
-
-                slope = forecast_data.get("monthly_slope_gbp", 0)
-                trend_label = (
-                    f"↑ Upward trend (+£{slope:,.0f}/mo)" if slope > 0
-                    else f"↓ Downward trend (£{slope:,.0f}/mo)" if slope < 0
-                    else "→ Flat trend"
-                )
-
-                fig_fc.update_layout(
+                fig_donut.update_layout(
                     **{**CHART_BASE, "showlegend": True},
                     height=320,
                     legend=dict(
-                        orientation="h", x=0, y=1.12,
+                        orientation="h", x=0.15, y=-0.08,
                         font=dict(size=11, color="#8b949e"),
                         bgcolor="rgba(0,0,0,0)",
                     ),
-                    xaxis=dict(gridcolor="#21262d", tickfont=dict(size=10), title=""),
-                    yaxis=dict(gridcolor="#21262d", tickprefix="£", tickfont=dict(size=10), title=""),
-                    title=dict(text=f"Last 12 months + 3-month linear forecast  ·  {trend_label}", font=dict(size=11, color="#8b949e")),
+                    title=dict(
+                        text=f"90-day inactivity threshold  ·  ref date {churn_data.get('reference_date', '')}",
+                        font=dict(size=11, color="#8b949e"),
+                    ),
                 )
-                st.plotly_chart(fig_fc, width='stretch')
+                st.plotly_chart(fig_donut, width='stretch')
+            else:
+                st.info(churn_data.get("error", "Churn data unavailable."), icon="ℹ️")
 
-                if forecast_data.get("outlier_warning"):
-                    st.warning(forecast_data["outlier_warning"], icon="⚠️")
-        else:
-            st.info(forecast_data.get("error", "Forecast unavailable."), icon="ℹ️")
+        # ── Charts row 2: High-Growth + Slow Movers ───────────────────────────────
+        col_c, col_d = st.columns(2)
 
-    with col_b:
-        st.markdown('<div class="chart-title">Churn Risk Breakdown</div>', unsafe_allow_html=True)
-        if "error" not in churn_data:
-            fig_donut = go.Figure(go.Pie(
-                labels=["At-Risk", "Healthy"],
-                values=[churn_data["at_risk_customers"], churn_data["healthy_customers"]],
-                hole=0.62,
-                marker=dict(
-                    colors=["#f85149", "#3fb950"],
-                    line=dict(color="#161b22", width=3),
-                ),
-                textinfo="percent",
-                textfont=dict(size=13, color="#e6edf3"),
-                hovertemplate="<b>%{label}</b><br>%{value:,} customers (%{percent})<extra></extra>",
-                sort=False,
-            ))
-            fig_donut.add_annotation(
-                text=f"<b>{churn_data['churn_risk_pct']}%</b><br><span style='font-size:11px'>at risk</span>",
-                x=0.5, y=0.5,
-                showarrow=False,
-                font=dict(size=20, color="#f0f6fc"),
-                align="center",
-            )
-            fig_donut.update_layout(
-                **{**CHART_BASE, "showlegend": True},
-                height=320,
-                legend=dict(
-                    orientation="h", x=0.15, y=-0.08,
-                    font=dict(size=11, color="#8b949e"),
-                    bgcolor="rgba(0,0,0,0)",
-                ),
-                title=dict(
-                    text=f"90-day inactivity threshold  ·  ref date {churn_data.get('reference_date', '')}",
-                    font=dict(size=11, color="#8b949e"),
-                ),
-            )
-            st.plotly_chart(fig_donut, width='stretch')
-        else:
-            st.info(churn_data.get("error", "Churn data unavailable."), icon="ℹ️")
+        with col_c:
+            st.markdown('<div class="chart-title">Top High-Growth Products (last 3 mo. vs prior 3 mo.)</div>', unsafe_allow_html=True)
+            if growth_data and "error" not in growth_data[0]:
+                g_df = pd.DataFrame(growth_data).sort_values("growth_pct")
+                g_df["label"] = g_df["product"].str[:30].str.strip()
+                fig_growth = go.Figure(go.Bar(
+                    x=g_df["growth_pct"],
+                    y=g_df["label"],
+                    orientation="h",
+                    marker=dict(
+                        color=g_df["growth_pct"],
+                        colorscale=[[0, "#1a3a2a"], [1, "#2ecc71"]],
+                        line=dict(color="rgba(0,0,0,0)"),
+                    ),
+                    text=[f"+{v:.0f}%" for v in g_df["growth_pct"]],
+                    textposition="outside",
+                    textfont=dict(size=10, color="#c9d1d9"),
+                    hovertemplate=(
+                        "<b>%{y}</b><br>"
+                        "Growth: +%{x:.1f}%<br>"
+                        "Recent: %{customdata[0]:,} units  |  Prior: %{customdata[1]:,} units"
+                        "<extra></extra>"
+                    ),
+                    customdata=g_df[["recent_units", "prior_units"]].values,
+                ))
+                fig_growth.update_layout(
+                    **CHART_BASE,
+                    height=300,
+                    xaxis=dict(gridcolor="#21262d", ticksuffix="%", tickfont=dict(size=10), title=""),
+                    yaxis=dict(gridcolor="#21262d", tickfont=dict(size=9), title=""),
+                )
+                st.plotly_chart(fig_growth, width='stretch')
+            elif growth_data and "error" in growth_data[0]:
+                st.info(growth_data[0]["error"], icon="ℹ️")
 
-    # ── Charts row 2: High-Growth + Slow Movers ───────────────────────────────────
-    col_c, col_d = st.columns(2)
-
-    with col_c:
-        st.markdown('<div class="chart-title">Top High-Growth Products (last 3 mo. vs prior 3 mo.)</div>', unsafe_allow_html=True)
-        if growth_data and "error" not in growth_data[0]:
-            g_df = pd.DataFrame(growth_data).sort_values("growth_pct")
-            g_df["label"] = g_df["product"].str[:30].str.strip()
-            fig_growth = go.Figure(go.Bar(
-                x=g_df["growth_pct"],
-                y=g_df["label"],
-                orientation="h",
-                marker=dict(
-                    color=g_df["growth_pct"],
-                    colorscale=[[0, "#1a3a2a"], [1, "#2ecc71"]],
-                    line=dict(color="rgba(0,0,0,0)"),
-                ),
-                text=[f"+{v:.0f}%" for v in g_df["growth_pct"]],
-                textposition="outside",
-                textfont=dict(size=10, color="#c9d1d9"),
-                hovertemplate=(
-                    "<b>%{y}</b><br>"
-                    "Growth: +%{x:.1f}%<br>"
-                    "Recent: %{customdata[0]:,} units  |  Prior: %{customdata[1]:,} units"
-                    "<extra></extra>"
-                ),
-                customdata=g_df[["recent_units", "prior_units"]].values,
-            ))
-            fig_growth.update_layout(
-                **CHART_BASE,
-                height=300,
-                xaxis=dict(gridcolor="#21262d", ticksuffix="%", tickfont=dict(size=10), title=""),
-                yaxis=dict(gridcolor="#21262d", tickfont=dict(size=9), title=""),
-            )
-            st.plotly_chart(fig_growth, width='stretch')
-        elif growth_data and "error" in growth_data[0]:
-            st.info(growth_data[0]["error"], icon="ℹ️")
-
-    with col_d:
-        st.markdown('<div class="chart-title">Top Slow Movers (last 3 mo. vs prior 3 mo.)</div>', unsafe_allow_html=True)
-        if slow_data and "error" not in slow_data[0]:
-            s_df = pd.DataFrame(slow_data).sort_values("decline_pct")
-            s_df["label"] = s_df["product"].str[:30].str.strip()
-            fig_slow = go.Figure(go.Bar(
-                x=s_df["decline_pct"],
-                y=s_df["label"],
-                orientation="h",
-                marker=dict(
-                    color=s_df["decline_pct"],
-                    colorscale=[[0, "#1a0a0a"], [1, "#f85149"]],
-                    line=dict(color="rgba(0,0,0,0)"),
-                ),
-                text=[f"-{v:.0f}%" for v in s_df["decline_pct"]],
-                textposition="outside",
-                textfont=dict(size=10, color="#c9d1d9"),
-                hovertemplate=(
-                    "<b>%{y}</b><br>"
-                    "Decline: -%{x:.1f}%<br>"
-                    "Recent: %{customdata[0]:,} units  |  Prior: %{customdata[1]:,} units"
-                    "<extra></extra>"
-                ),
-                customdata=s_df[["recent_units", "prior_units"]].values,
-            ))
-            fig_slow.update_layout(
-                **CHART_BASE,
-                height=300,
-                xaxis=dict(gridcolor="#21262d", ticksuffix="%", tickfont=dict(size=10), title=""),
-                yaxis=dict(gridcolor="#21262d", tickfont=dict(size=9), title=""),
-            )
-            st.plotly_chart(fig_slow, width='stretch')
-        elif slow_data and "error" in slow_data[0]:
-            st.info(slow_data[0]["error"], icon="ℹ️")
-
+        with col_d:
+            st.markdown('<div class="chart-title">Top Slow Movers (last 3 mo. vs prior 3 mo.)</div>', unsafe_allow_html=True)
+            if slow_data and "error" not in slow_data[0]:
+                s_df = pd.DataFrame(slow_data).sort_values("decline_pct")
+                s_df["label"] = s_df["product"].str[:30].str.strip()
+                fig_slow = go.Figure(go.Bar(
+                    x=s_df["decline_pct"],
+                    y=s_df["label"],
+                    orientation="h",
+                    marker=dict(
+                        color=s_df["decline_pct"],
+                        colorscale=[[0, "#1a0a0a"], [1, "#f85149"]],
+                        line=dict(color="rgba(0,0,0,0)"),
+                    ),
+                    text=[f"-{v:.0f}%" for v in s_df["decline_pct"]],
+                    textposition="outside",
+                    textfont=dict(size=10, color="#c9d1d9"),
+                    hovertemplate=(
+                        "<b>%{y}</b><br>"
+                        "Decline: -%{x:.1f}%<br>"
+                        "Recent: %{customdata[0]:,} units  |  Prior: %{customdata[1]:,} units"
+                        "<extra></extra>"
+                    ),
+                    customdata=s_df[["recent_units", "prior_units"]].values,
+                ))
+                fig_slow.update_layout(
+                    **CHART_BASE,
+                    height=300,
+                    xaxis=dict(gridcolor="#21262d", ticksuffix="%", tickfont=dict(size=10), title=""),
+                    yaxis=dict(gridcolor="#21262d", tickfont=dict(size=9), title=""),
+                )
+                st.plotly_chart(fig_slow, width='stretch')
+            elif slow_data and "error" in slow_data[0]:
+                st.info(slow_data[0]["error"], icon="ℹ️")
