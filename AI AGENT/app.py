@@ -232,7 +232,7 @@ CHART_BASE = dict(
 # ── Load agents ─────────────────────────────────────────────────────────────────
 # Bump this string whenever Manager.py / analyst files change — forces Streamlit
 # to discard the cached ManagerAgent and rebuild from the current code.
-_AGENT_VERSION = "v14"  # bump when Manager.py / analyst files change
+_AGENT_VERSION = "v15"  # bump when Manager.py / analyst files change
 
 def _csv_mtime() -> float:
     """Return the modification time of the CSV so the cache key tracks file changes."""
@@ -777,9 +777,8 @@ with tab_pred:
                 align="center",
             )
             fig_donut.update_layout(
-                **CHART_BASE,
+                **{**CHART_BASE, "showlegend": True},
                 height=320,
-                showlegend=True,
                 legend=dict(
                     orientation="h", x=0.15, y=-0.08,
                     font=dict(size=11, color="#8b949e"),
