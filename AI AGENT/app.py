@@ -35,7 +35,10 @@ st.markdown("""
         background: #EDE9FE !important;
         border-right: 1px solid #DDD6FE;
     }
-    [data-testid="stSidebar"] * { color: #4C1D95 !important; }
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] .stMarkdown p { color: #4C1D95 !important; }
 
     /* ── Split-pane columns: let Streamlit handle spacing natively ── */
 
@@ -97,6 +100,13 @@ st.markdown("""
         scrollbar-color: #DDD6FE transparent;
     }
 
+    /* ── Chat pane divider ── */
+    .chat-pane {
+        border-right: 1px solid #E5E7EB;
+        padding-right: 24px;
+        min-height: calc(100vh - 80px);
+    }
+
     /* ── Tabs ── */
     .stTabs [data-baseweb="tab-list"] {
         background: transparent;
@@ -120,6 +130,8 @@ st.markdown("""
         color: #1E1B4B !important;
     }
     .stTabs [data-baseweb="tab-panel"] { padding-top: 24px; }
+    [data-testid="stTabs"] { margin-top: 20px !important; }
+    [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"] + [data-testid="stHorizontalBlock"] { margin-top: 20px !important; }
 
     /* ── Native metric cards ── */
     [data-testid="stMetric"] {
@@ -141,11 +153,10 @@ st.markdown("""
         font-size: 22px !important;
         font-weight: 700 !important;
     }
-    [data-testid="stMetricDelta"] svg { display: none; }
-    [data-testid="stMetricDelta"] > div {
-        font-size: 11px !important;
-        color: #6B7280 !important;
-    }
+    [data-testid="stMetricDelta"] svg { width: 14px !important; height: 14px !important; }
+    [data-testid="stMetricDelta"] > div { font-size: 11px !important; font-weight: 600 !important; }
+    [data-testid="stMetricDelta"][data-direction="increase"] > div { color: #059669 !important; }
+    [data-testid="stMetricDelta"][data-direction="decrease"] > div { color: #DC2626 !important; }
 
     /* ── Agent status cards ── */
     .agent-card {
@@ -175,7 +186,7 @@ st.markdown("""
         align-items: center;
         gap: 10px;
         padding: 10px 0 14px 0;
-        border-bottom: 1px solid #EDE9FE;
+        border-bottom: 1px solid #DDD6FE;
         margin-bottom: 16px;
     }
     .page-header-title {
@@ -289,8 +300,8 @@ st.markdown("""
 
     /* ── Section headers ── */
     .section-label {
-        color: #6B7280;
-        font-size: 10px;
+        color: #4B5563;
+        font-size: 11px;
         font-weight: 700;
         letter-spacing: 1.2px;
         text-transform: uppercase;
@@ -299,8 +310,8 @@ st.markdown("""
 
     /* ── Chart subsection title ── */
     .chart-title {
-        color: #6B7280;
-        font-size: 11px;
+        color: #4B5563;
+        font-size: 12px;
         font-weight: 600;
         letter-spacing: 0.8px;
         text-transform: uppercase;
@@ -335,6 +346,8 @@ st.markdown("""
     [data-testid="stSidebar"] [data-testid="stRadio"] > div > label:has(input:checked) {
         background: rgba(124,58,237,0.12);
         border-color: #7C3AED;
+        border-left: 3px solid #7C3AED !important;
+        padding-left: 9px;
         color: #6D28D9 !important;
         font-weight: 600;
     }
@@ -464,6 +477,13 @@ with st.sidebar:
 
     st.markdown('<div class="section-label">Active Agents</div>', unsafe_allow_html=True)
 
+    _AGENT_COLORS = {
+        "Alex": "#7C3AED",
+        "Dana": "#2563EB",
+        "Maya": "#059669",
+        "Rey":  "#6D28D9",
+        "Aria": "#0891B2",
+    }
     agents_info = [
         ("Alex", "Sales Analyst", "💼"),
         ("Dana", "Product Analyst", "📦"),
@@ -472,9 +492,10 @@ with st.sidebar:
         ("Aria", "General Analyst · Code", "🧠"),
     ]
     for name, role, icon in agents_info:
+        color = _AGENT_COLORS.get(name, "#7C3AED")
         st.markdown(f"""
-        <div class="agent-card">
-            <div class="agent-dot"></div>
+        <div class="agent-card" style="border-left: 3px solid {color};">
+            <div class="agent-dot" style="background: {color}; box-shadow: 0 0 6px {color};"></div>
             <div>
                 <div class="agent-name">{icon}&nbsp; {name}</div>
                 <div class="agent-role">{role}</div>
@@ -503,11 +524,16 @@ def _render_canvas(artifact: dict | None, empty_hint: str = "Ask a question to g
         st.markdown(f"""
         <div class="canvas-card">
             <div class="canvas-header">
-                <span class="canvas-title">Artifact Canvas</span>
+                <span class="canvas-title">Results Panel</span>
                 <span class="canvas-badge">READY</span>
             </div>
             <div class="canvas-empty">
-                <div class="canvas-empty-icon">✦</div>
+                <div class="canvas-empty-icon">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="48" height="48" rx="24" fill="#EDE9FE"/>
+                        <path d="M24 16v16M16 24h16" stroke="#7C3AED" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
                 <div class="canvas-empty-text">{empty_hint}</div>
             </div>
         </div>
@@ -521,16 +547,7 @@ def _render_canvas(artifact: dict | None, empty_hint: str = "Ask a question to g
 
     # ── Canvas header ─────────────────────────────────────────────────────────
     st.markdown(f"""
-    <div style="
-        background: #FFFFFF;
-        border: 1px solid #E5E7EB;
-        border-radius: 14px;
-        padding: 20px 24px 0 24px;
-        min-height: calc(100vh - 120px);
-        position: sticky;
-        top: 0.5rem;
-        box-shadow: 0 1px 4px rgba(109,40,217,0.07);
-    ">
+    <div class="canvas-card">
         <div class="canvas-header">
             <div>
                 <div class="canvas-title">🤖 {agent}</div>
@@ -599,7 +616,7 @@ if st.session_state.page == "📊 Dashboard":
     k4.metric("Avg Order Value",  f"£{aov:,.2f}",         "Per invoice")
     k5.metric("Refund Rate",      f"{refund:.1f}%",       "Of all transactions")
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div style="margin-top: 16px;"></div>', unsafe_allow_html=True)
 
     dash_t1, dash_t2, dash_t3, dash_t4 = st.tabs([
         "📈 Revenue Trend", "🌍 Top Countries", "📦 Top Products", "🕐 Hourly Sales",
@@ -613,7 +630,6 @@ if st.session_state.page == "📊 Dashboard":
                 monthly_df, x="Month", y="Revenue",
                 title="Monthly Revenue",
                 color_discrete_sequence=["#7C3AED"],
-                template="plotly_dark",
             )
             fig.update_layout(
                 **CHART_BASE,
@@ -627,7 +643,7 @@ if st.session_state.page == "📊 Dashboard":
                 fillcolor="rgba(124,58,237,0.08)",
                 hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra></extra>",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
     with dash_t2:
         top_countries = sales.get_top_countries_by_revenue(limit=5)
@@ -639,7 +655,6 @@ if st.session_state.page == "📊 Dashboard":
                 title="Top 5 Countries by Revenue",
                 color="Revenue",
                 color_continuous_scale=["#EDE9FE", "#6D28D9"],
-                template="plotly_dark",
             )
             fig2.update_layout(
                 **CHART_BASE,
@@ -649,7 +664,7 @@ if st.session_state.page == "📊 Dashboard":
                 coloraxis_showscale=False,
             )
             fig2.update_traces(hovertemplate="<b>%{y}</b><br>£%{x:,.0f}<extra></extra>")
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
     with dash_t3:
         top_products = sales.get_top_products_by_revenue(limit=8)
@@ -662,7 +677,6 @@ if st.session_state.page == "📊 Dashboard":
                 title="Top 8 Products by Revenue",
                 color="Revenue",
                 color_continuous_scale=["#EDE9FE", "#7C3AED"],
-                template="plotly_dark",
             )
             fig3.update_layout(
                 **CHART_BASE,
@@ -672,7 +686,7 @@ if st.session_state.page == "📊 Dashboard":
                 coloraxis_showscale=False,
             )
             fig3.update_traces(hovertemplate="<b>%{y}</b><br>£%{x:,.0f}<extra></extra>")
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
     with dash_t4:
         hourly = sales.get_hourly_sales_distribution()
@@ -685,7 +699,6 @@ if st.session_state.page == "📊 Dashboard":
                 title="Sales by Hour of Day",
                 color="Revenue",
                 color_continuous_scale=["#D1FAE5", "#059669"],
-                template="plotly_dark",
             )
             fig4.update_layout(
                 **CHART_BASE,
@@ -701,7 +714,7 @@ if st.session_state.page == "📊 Dashboard":
                 coloraxis_showscale=False,
             )
             fig4.update_traces(hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra></extra>")
-            st.plotly_chart(fig4, use_container_width=True)
+            st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
 
 # ════════════════════════════════════════════════════════
@@ -716,17 +729,7 @@ elif st.session_state.page == "💬 AI Chat":
         st.session_state.messages.append({
             "role": "assistant",
             "agent": "Manager Agent",
-            "content": (
-                "👋 Hello! I'm your **AI Data Department** — a team of specialised analysts "
-                "ready to dig into your retail data.\n\n"
-                "**Meet the team:**\n"
-                "- 💼 **Alex** — Sales Analyst *(revenue, orders, trends)*\n"
-                "- 📦 **Dana** — Product Analyst *(product performance, rankings, lifecycle)*\n"
-                "- 👤 **Maya** — Customer Analyst *(profiles, loyalty, segmentation)*\n"
-                "- 🧠 **Aria** — General Analyst *(cross-domain questions & custom code)*\n\n"
-                "For predictions, forecasts, and churn analysis — visit the **🔮 Prediction** page.\n\n"
-                "What would you like to analyse today?"
-            ),
+            "content": "👋 Ready to analyse your retail data. Try a suggestion below or ask anything.",
             "charts": [],
         })
 
@@ -802,19 +805,21 @@ elif st.session_state.page == "💬 AI Chat":
                 "Which country earns the most?",
                 "Weekend vs weekday sales",
             ]
+            chip_cols = st.columns(2)
             for i, s in enumerate(suggestions):
-                if st.button(s, key=f"sugg_{i}", use_container_width=True):
+                if chip_cols[i % 2].button(s, key=f"sugg_{i}"):
                     st.session_state.pending_input = s
                     st.rerun()
-            st.markdown("<br>", unsafe_allow_html=True)
 
         # ── Chat history ──────────────────────────────────────────────────────
+        st.markdown('<div class="chat-scroll">', unsafe_allow_html=True)
         for msg in st.session_state.messages:
             if msg["role"] == "user":
                 with st.chat_message("user"):
                     st.write(msg["content"])
             else:
                 _render_assistant_msg(msg)
+        st.markdown('</div>', unsafe_allow_html=True)
 
         # ── Handle suggestion click ───────────────────────────────────────────
         if "pending_input" in st.session_state:
@@ -830,11 +835,11 @@ elif st.session_state.page == "💬 AI Chat":
                 st.session_state.current_artifact = None
                 st.rerun()
 
-    # ── Chat input is page-level so it sticks to the bottom ───────────────────
-    if prompt := st.chat_input("Ask about your sales, products, customers, or request custom analysis..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        _process_request(prompt)
-        st.rerun()
+        # ── Chat input anchored inside chat pane ─────────────────────────────
+        if prompt := st.chat_input("Ask about your sales, products, customers, or request custom analysis..."):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            _process_request(prompt)
+            st.rerun()
 
     with col_canvas:
         _render_canvas(
@@ -865,12 +870,12 @@ elif st.session_state.page == "🔮 Prediction":
         _AGENT_VERSION, _csv_mtime()
     )
 
-    pred_t1, pred_t2, pred_t3 = st.tabs(["💬 Ask Rey", "📊 Live Metrics", "🤖 Live ML Models"])
+    pred_t1, pred_t2, pred_t3 = st.tabs(["📊 Live Metrics", "💬 Ask Rey", "🤖 Live ML Models"])
 
     # ════════════════════════
-    # TAB 1 — Ask Rey (split-pane)
+    # TAB 2 — Ask Rey (split-pane)
     # ════════════════════════
-    with pred_t1:
+    with pred_t2:
 
         MAX_PRED_HISTORY = 50
 
@@ -954,19 +959,21 @@ elif st.session_state.page == "🔮 Prediction":
                     "Repeat purchase probability",
                     "High-growth products",
                 ]
+                pred_chip_cols = st.columns(2)
                 for i, s in enumerate(pred_suggestions):
-                    if st.button(s, key=f"pred_sugg_{i}", use_container_width=True):
+                    if pred_chip_cols[i % 2].button(s, key=f"pred_sugg_{i}"):
                         st.session_state.pred_pending = s
                         st.rerun()
-                st.markdown("<br>", unsafe_allow_html=True)
 
             # ── Chat history ──────────────────────────────────────────────────
+            st.markdown('<div class="chat-scroll">', unsafe_allow_html=True)
             for msg in st.session_state.pred_messages:
                 if msg["role"] == "user":
                     with st.chat_message("user"):
                         st.write(msg["content"])
                 else:
                     _render_pred_msg(msg)
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # ── Handle suggestion click ───────────────────────────────────────
             if "pred_pending" in st.session_state:
@@ -982,11 +989,11 @@ elif st.session_state.page == "🔮 Prediction":
                     st.session_state.pred_artifact = None
                     st.rerun()
 
-        # ── Chat input (page-level, sticks to bottom) ─────────────────────────
-        if prompt := st.chat_input("Ask Rey about forecasts, churn, CLV, product trends...", key="pred_input"):
-            st.session_state.pred_messages.append({"role": "user", "content": prompt})
-            _process_pred_request(prompt)
-            st.rerun()
+            # ── Chat input anchored inside chat pane ─────────────────────────
+            if prompt := st.chat_input("Ask Rey about forecasts, churn, CLV, product trends...", key="pred_input"):
+                st.session_state.pred_messages.append({"role": "user", "content": prompt})
+                _process_pred_request(prompt)
+                st.rerun()
 
         with col_pcanvas:
             _render_canvas(
@@ -995,9 +1002,9 @@ elif st.session_state.page == "🔮 Prediction":
             )
 
     # ════════════════════════
-    # TAB 2 — Live Metrics
+    # TAB 1 — Live Metrics
     # ════════════════════════
-    with pred_t2:
+    with pred_t1:
 
         churn_pct    = churn_data.get("churn_risk_pct", 0.0) if "error" not in churn_data else None
         at_risk_n    = churn_data.get("at_risk_customers", 0)  if "error" not in churn_data else None
@@ -1028,7 +1035,7 @@ elif st.session_state.page == "🔮 Prediction":
             "Active within 90 days",
         )
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div style="margin-top: 16px;"></div>', unsafe_allow_html=True)
 
         col_a, col_b = st.columns([3, 2])
 
@@ -1119,7 +1126,7 @@ elif st.session_state.page == "🔮 Prediction":
                         yaxis=dict(gridcolor="#E5E7EB", tickprefix="£", tickfont=dict(size=10), title=""),
                         title=dict(text=f"Last 12 months + 3-month linear forecast  ·  {trend_label}", font=dict(size=11, color="#8b949e")),
                     )
-                    st.plotly_chart(fig_fc, use_container_width=True)
+                    st.plotly_chart(fig_fc, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
                     if forecast_data.get("outlier_warning"):
                         st.warning(forecast_data["outlier_warning"], icon="⚠️")
@@ -1162,7 +1169,7 @@ elif st.session_state.page == "🔮 Prediction":
                         font=dict(size=11, color="#8b949e"),
                     ),
                 )
-                st.plotly_chart(fig_donut, use_container_width=True)
+                st.plotly_chart(fig_donut, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
             else:
                 st.info(churn_data.get("error", "Churn data unavailable."), icon="ℹ️")
 
@@ -1199,7 +1206,7 @@ elif st.session_state.page == "🔮 Prediction":
                     xaxis=dict(gridcolor="#E5E7EB", ticksuffix="%", tickfont=dict(size=10), title=""),
                     yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=9), title=""),
                 )
-                st.plotly_chart(fig_growth, use_container_width=True)
+                st.plotly_chart(fig_growth, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
             elif growth_data and "error" in growth_data[0]:
                 st.info(growth_data[0]["error"], icon="ℹ️")
 
@@ -1234,7 +1241,7 @@ elif st.session_state.page == "🔮 Prediction":
                     xaxis=dict(gridcolor="#E5E7EB", ticksuffix="%", tickfont=dict(size=10), title=""),
                     yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=9), title=""),
                 )
-                st.plotly_chart(fig_slow, use_container_width=True)
+                st.plotly_chart(fig_slow, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
             elif slow_data and "error" in slow_data[0]:
                 st.info(slow_data[0]["error"], icon="ℹ️")
 
@@ -1281,7 +1288,7 @@ elif st.session_state.page == "🔮 Prediction":
             else:
                 st.warning(ml_seg_data.get("error", "Model unavailable"), icon="⚠️")
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div style="margin-top: 16px;"></div>', unsafe_allow_html=True)
 
         st.markdown('<div class="chart-title">Prophet Revenue Forecast — 3-Month Horizon with 95% Confidence Intervals</div>', unsafe_allow_html=True)
 
@@ -1365,11 +1372,11 @@ elif st.session_state.page == "🔮 Prediction":
                             font=dict(size=11, color="#8b949e"),
                         ),
                     )
-                    st.plotly_chart(fig_prophet, use_container_width=True)
+                    st.plotly_chart(fig_prophet, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
         else:
             st.info(forecast_data.get("error", "Forecast unavailable."), icon="ℹ️")
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div style="margin-top: 16px;"></div>', unsafe_allow_html=True)
 
         col_c1, col_c2 = st.columns(2)
 
@@ -1397,7 +1404,7 @@ elif st.session_state.page == "🔮 Prediction":
                         font=dict(size=11, color="#8b949e"),
                     ),
                 )
-                st.plotly_chart(fig_hist, use_container_width=True)
+                st.plotly_chart(fig_hist, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
                 fi = ml_churn_data.get("feature_importances", [])
                 if fi:
@@ -1423,7 +1430,7 @@ elif st.session_state.page == "🔮 Prediction":
                         yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=10), title=""),
                         title=dict(text="Feature Importance", font=dict(size=11, color="#8b949e")),
                     )
-                    st.plotly_chart(fig_fi, use_container_width=True)
+                    st.plotly_chart(fig_fi, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
             else:
                 st.info(ml_churn_data.get("error", "Churn ML model unavailable"), icon="ℹ️")
 
@@ -1481,7 +1488,7 @@ elif st.session_state.page == "🔮 Prediction":
                         font=dict(size=11, color="#8b949e"),
                     ),
                 )
-                st.plotly_chart(fig_seg, use_container_width=True)
+                st.plotly_chart(fig_seg, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
                 st.markdown('<div class="chart-title">Segment Summary</div>', unsafe_allow_html=True)
                 display_seg = seg_df[["label", "customer_count", "pct_of_total",
