@@ -18,20 +18,36 @@ def create_app():
         static_folder=os.path.join(BASE_DIR, 'flask_static'),
         template_folder=os.path.join(BASE_DIR, 'flask_templates')
     )
-    app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'ai_data_agent_dev_fallback_change_me')
+    app.secret_key = (
+        os.environ.get('SECRET_KEY') or
+        os.environ.get('FLASK_SECRET_KEY') or
+        'ai_data_agent_dev_fallback_change_me'
+    )
     app.permanent_session_lifetime = timedelta(minutes=30)
 
     from flask_routes.auth import auth_bp
     from flask_routes.dashboard import dashboard_bp
     from flask_routes.chat import chat_bp
+    from flask_routes.prediction import prediction_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(prediction_bp)
 
     @app.route('/')
     def index():
         return redirect(url_for('auth.login'))
+
+    @app.errorhandler(404)
+    def not_found(e):
+        from flask import render_template
+        return render_template('404.html'), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        from flask import render_template
+        return render_template('500.html'), 500
 
     return app
 

@@ -172,6 +172,10 @@
         <a class="nav-link {% if request.endpoint == 'chat.chat' %}active{% endif %}"
            href="{{ url_for('chat.chat') }}">💬 AI Chat</a>
       </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint == 'prediction.prediction' %}active{% endif %}"
+           href="{{ url_for('prediction.prediction') }}">🔮 Prediction</a>
+      </li>
     </ul>
     <div class="d-flex align-items-center gap-3">
       <span class="nav-user">👤 {{ session.get('username') }}</span>

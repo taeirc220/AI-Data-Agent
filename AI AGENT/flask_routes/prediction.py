@@ -1,0 +1,78 @@
+from flask import Blueprint, render_template, session, request, jsonify
+from flask_routes.utils import login_required
+
+prediction_bp = Blueprint('prediction', __name__)
+
+
+@prediction_bp.route('/prediction')
+@login_required
+def prediction():
+    return render_template('prediction.html', username=session.get('username'))
+
+
+@prediction_bp.route('/api/prediction/chat', methods=['POST'])
+@login_required
+def api_prediction_chat():
+    data    = request.get_json(silent=True) or {}
+    message = data.get('message', '').strip()
+    history = data.get('history', [])
+
+    if not message:
+        return jsonify({'error': 'Empty message'}), 400
+    if len(message) > 2000:
+        return jsonify({'error': 'Message too long.'}), 400
+
+    from flask_agents import get_agents
+    df, manager, sales = get_agents()
+
+    if manager is None:
+        return jsonify({'error': 'Agent not available.'}), 500
+
+    try:
+        response = ""
+        agent_label = "Prediction Agent (Rey)"
+        for step in manager.handle_prediction_request(message, history=history):
+            if step["type"] == "result":
+                response = step["content"]
+                agent_label = step.get("agent_label", agent_label)
+        return jsonify({'response': response, 'agent': agent_label})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@prediction_bp.route('/api/prediction/metrics')
+@login_required
+def api_prediction_metrics():
+    from flask_agents import get_agents
+    df, manager, sales = get_agents()
+
+    if df is None:
+        return jsonify({'error': 'Data not available'}), 500
+
+    try:
+        pa = manager.prediction_analyst
+        churn  = pa.get_churn_risk_summary()
+        repeat = pa.get_repeat_purchase_probability()
+        return jsonify({'churn': churn, 'repeat': repeat})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@prediction_bp.route('/api/prediction/charts')
+@login_required
+def api_prediction_charts():
+    from flask_agents import get_agents
+    df, manager, sales = get_agents()
+
+    if df is None:
+        return jsonify({'error': 'Data not available'}), 500
+
+    try:
+        pa = manager.prediction_analyst
+        return jsonify({
+            'forecast':    pa.get_revenue_forecast(horizon_months=3),
+            'high_growth': pa.get_high_growth_products(top_n=5),
+            'slow_movers': pa.get_slow_movers(top_n=8),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
