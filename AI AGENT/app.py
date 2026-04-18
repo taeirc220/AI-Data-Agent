@@ -25,21 +25,13 @@ st.markdown("""
         height: 0 !important;
         min-height: 0 !important;
         padding: 0 !important;
-        overflow: hidden !important;
         visibility: hidden;
+        /* overflow: hidden omitted — on Chrome, overflow:hidden on a fixed element
+           creates a containing block / stacking context that mis-layers the sidebar */
     }
 
-    /* Hide the collapse button visually but keep it in the DOM so all browsers
-       can still manage sidebar state via JavaScript */
-    [data-testid="stSidebarCollapseButton"] {
-        visibility: hidden !important;
-        pointer-events: none !important;
-        width: 0 !important;
-        height: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: hidden !important;
-    }
+    /* Single rule is enough and avoids Chrome layout recalculation side-effects */
+    [data-testid="stSidebarCollapseButton"] { display: none !important; }
 
     /* ── Base ── */
     .stApp { background-color: #F7F5FF; }
@@ -55,7 +47,9 @@ st.markdown("""
     [data-testid="stSidebar"] {
         display: block !important;
         visibility: visible !important;
-        transform: translateX(0) !important;
+        transform: none !important;
+        position: relative !important;
+        z-index: 999 !important;
         margin-left: 0 !important;
         left: 0 !important;
         background: #EDE9FE !important;
