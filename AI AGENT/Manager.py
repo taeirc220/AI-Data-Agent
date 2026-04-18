@@ -158,14 +158,32 @@ class ManagerAgent:
         # Schema context string (injected once into every system prompt)
         self.schema_context = _generate_schema_context(df)
 
+        # Pre-compute common aggregates once at startup (O(n) → O(1) for every tool call)
+        sales_df = df[df['Quantity'] > 0].copy()
+        sales_df['_rev'] = sales_df['Quantity'] * sales_df['Price']
+        self._stats_cache = {
+            "total_customers": int(df['Customer ID'].nunique()),
+            "total_orders":    int(df['Invoice'].nunique()),
+            "total_revenue":   round(float(sales_df['_rev'].sum()), 2),
+            "total_items_sold": int(sales_df['Quantity'].sum()),
+            "total_products":  int(df['Description'].nunique()),
+            "date_from":       str(df['InvoiceDate'].min().date()),
+            "date_to":         str(df['InvoiceDate'].max().date()),
+            "top_country":     str(sales_df.groupby('Country')['_rev'].sum().idxmax()),
+        }
+
         # Build execute_python tool (closure over self.executor)
         execute_python = self._make_execute_python_tool()
+
+        # Build get_dataset_summary tool (shared across all agents)
+        get_dataset_summary = self._make_dataset_summary_tool()
 
         # ── Sales agent ────────────────────────────────────────────────────────
         # Kept: single-stat KPIs and simple rankings only.
         # Everything trend/time-series/complex is handled by execute_python.
         self.sales_analyst = SalesAnalyst(df)
         self.sales_tools = [
+            get_dataset_summary,
             self.sales_analyst.search_products,
             self.sales_analyst.get_total_revenue,
             self.sales_analyst.get_total_orders,
@@ -202,6 +220,7 @@ class ManagerAgent:
         # Trends, return rates, growth, lifecycle → execute_python.
         self.product_analyst = ProductAnalyst(df)
         self.product_tools = [
+            get_dataset_summary,
             self.product_analyst.search_products,
             self.product_analyst.get_total_products_sold,
             self.product_analyst.get_product_revenue,
@@ -236,8 +255,10 @@ class ManagerAgent:
         # Segmentation, cohorts, churn lists, country breakdowns → execute_python.
         self.customer_analyst = CustomerAnalyst(df)
         self.customer_tools = [
+            get_dataset_summary,
             self.customer_analyst.search_products,
             self.customer_analyst.get_total_unique_customers,
+            self.customer_analyst.get_total_items_sold,
             self.customer_analyst.get_top_customer,
             self.customer_analyst.get_top_spending_customers,
             self.customer_analyst.get_repeat_customer_rate,
@@ -264,6 +285,12 @@ class ManagerAgent:
             "8. CITE TOOL OUTPUT: Reproduce exact numbers from tool responses verbatim.\n"
             "9. For segmentation or clustering questions, these belong to the Prediction Agent (Rey) — "
             "   use execute_python only for simple one-off custom groupings.\n"
+            "10. If asked about 'quantity' or 'total items' WITHOUT a specific customer ID, "
+            "    call get_total_items_sold — do not use execute_python for this.\n"
+            "11. If the question is ambiguous (e.g. 'customers quantity', 'customer count'), "
+            "    interpret it as 'total number of unique customers' and call get_total_unique_customers.\n"
+            "12. For any general overview question ('what data do you have', 'give me a summary', "
+            "    'overview of the business'), call get_dataset_summary first.\n"
         )
         self.customer_executor = create_react_agent(
             self.llm, tools=self.customer_tools, prompt=customer_prompt
@@ -272,6 +299,7 @@ class ManagerAgent:
         # ── Prediction agent ───────────────────────────────────────────────────
         self.prediction_analyst = PredictionAnalyst(df)
         self.prediction_tools = [
+            get_dataset_summary,
             self.prediction_analyst.search_products,
             self.prediction_analyst.get_churn_risk_summary,
             self.prediction_analyst.get_at_risk_customers,
@@ -353,6 +381,7 @@ class ManagerAgent:
         # execute_python is the primary tool. A handful of pre-built tools remain
         # as shortcuts for the most common single-stat lookups.
         general_tools = [
+            get_dataset_summary,
             execute_python,
             self.sales_analyst.search_products,
             self.sales_analyst.get_total_revenue,
@@ -449,6 +478,38 @@ class ManagerAgent:
         return execute_python
 
     # ------------------------------------------------------------------
+    # Dataset summary tool factory (uses pre-computed stats cache)
+    # ------------------------------------------------------------------
+
+    def _make_dataset_summary_tool(self):
+        """Return a LangChain @tool that returns the pre-computed dataset overview."""
+        cache = self._stats_cache  # closure capture
+
+        @lc_tool
+        def get_dataset_summary() -> dict:
+            """
+            Returns a high-level overview of the entire retail dataset.
+            Call this for ANY of the following:
+            - General questions about the business ('overview', 'summary', 'what data do you have')
+            - Questions about totals when no specific domain is clear
+            - Ambiguous questions that could span multiple categories
+            Returns: total_customers, total_orders, total_revenue, total_items_sold,
+            total_products, date_range, top_country.
+            All values are pre-computed — this tool is instant.
+            """
+            return {
+                "total_customers":   cache["total_customers"],
+                "total_orders":      cache["total_orders"],
+                "total_revenue_gbp": cache["total_revenue"],
+                "total_items_sold":  cache["total_items_sold"],
+                "total_products":    cache["total_products"],
+                "date_range":        f"{cache['date_from']} to {cache['date_to']}",
+                "top_country":       cache["top_country"],
+            }
+
+        return get_dataset_summary
+
+    # ------------------------------------------------------------------
     # Chart retrieval (called by the UI after handle_request)
     # ------------------------------------------------------------------
 
@@ -470,16 +531,17 @@ class ManagerAgent:
         """
         system_prompt = (
             "You are a routing assistant for a retail analytics system. "
-            "Classify the question into EXACTLY ONE of these four categories:\n\n"
-            "- sales: revenue totals, order counts, trends, growth rates, "
-            "refund rates, anomalies, busiest days, peak hours, weekend vs weekday, "
-            "month-over-month comparisons, date-range queries, Pareto analysis, "
-            "basket/cross-sell analysis\n"
+            "Classify the question into EXACTLY ONE of these five categories:\n\n"
+            "- sales: revenue totals, order counts, total quantity sold, total items sold, "
+            "units sold, how many items, trends, growth rates, refund rates, anomalies, "
+            "busiest days, peak hours, weekend vs weekday, month-over-month comparisons, "
+            "date-range queries, Pareto analysis, basket/cross-sell analysis\n"
             "- product: specific product performance — what sells most, revenue per item, "
             "return rates per product, product trends, lifecycle status, popularity scores, "
-            "price analysis\n"
+            "price analysis, how many products\n"
             "- customer: buyer behaviour — top spenders, customer profiles by ID, loyalty, "
-            "repeat purchase rates, country breakdowns, VIP segments, "
+            "repeat purchase rates, country breakdowns, VIP segments, how many customers, "
+            "customer count, number of customers, customers quantity (= how many customers), "
             "ANY question containing a specific customer ID number (e.g. 'customer 18102', "
             "'ID 12345'), order history for a customer, spending by a specific customer\n"
             "- prediction: forward-looking questions — revenue forecasts, churn risk, "
@@ -490,14 +552,22 @@ class ManagerAgent:
             "'what will happen', 'predict', 'forecast', 'at risk', "
             "'next month/quarter', 'which products are dying/taking off', "
             "'Champions', 'Loyal customers', 'Hibernating', 'segment', 'segments'\n"
-            "- general: questions that clearly span multiple domains, require joining "
-            "sales + products + customers, involve custom code/analysis, or do not fit above\n\n"
+            "- general: overview of the business, dataset summary, 'what data do you have', "
+            "questions that span multiple domains, require joining sales + products + customers, "
+            "involve custom code/analysis, or do not fit the categories above\n\n"
+            "DISAMBIGUATION EXAMPLES:\n"
+            "- 'customers quantity' → customer (means: how many customers)\n"
+            "- 'total quantity sold' → sales (means: total items/units sold)\n"
+            "- 'how many products' → product\n"
+            "- 'give me an overview' → general\n"
+            "- 'what data do you have' → general\n\n"
             "IMPORTANT: The user may ask short follow-up questions using pronouns. "
             "Use the conversation history to understand context, then classify based on "
             "the full intent — not just the current message.\n\n"
             "RULES:\n"
             "- If the question mentions a numeric customer ID, ALWAYS classify as 'customer'.\n"
-            "- If the question is about the future, forecasting, or risk, ALWAYS classify as 'prediction'.\n\n"
+            "- If the question is about the future, forecasting, or risk, ALWAYS classify as 'prediction'.\n"
+            "- If the question mentions 'quantity' without a customer ID, classify as 'sales'.\n\n"
             "Reply with ONLY one word: sales, product, customer, prediction, or general."
         )
 
