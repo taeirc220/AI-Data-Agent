@@ -20,12 +20,27 @@ st.markdown("""
     /* ── Hide Streamlit chrome ── */
     #MainMenu { visibility: hidden; }
     footer    { visibility: hidden; }
-    /* Hide header content but keep the sidebar toggle button visible */
-    header { visibility: hidden; }
+    /* Collapse header to zero height so it takes no space and blocks nothing */
+    header {
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        visibility: hidden;
+    }
+
+    /* Layer 1: Hide the collapse (>>) button — sidebar IS the navigation, never let it disappear */
+    [data-testid="stSidebarCollapseButton"] { display: none !important; }
+
+    /* Layer 2: Fallback — if sidebar is somehow collapsed, keep re-open button accessible */
     [data-testid="stSidebarCollapsedControl"] {
+        display: block !important;
         visibility: visible !important;
         pointer-events: auto !important;
         z-index: 999999 !important;
+        position: fixed !important;
+        top: 0.5rem !important;
+        left: 0.5rem !important;
     }
 
     /* ── Base ── */
