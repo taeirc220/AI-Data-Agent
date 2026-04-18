@@ -32,9 +32,11 @@ def api_chat():
     try:
         # handle_request is a generator — consume it and extract the final result
         response = ""
+        agent_label = ""
         for step in manager.handle_request(message, history=history):
             if step["type"] == "result":
                 response = step["content"]
-        return jsonify({'response': response})
+                agent_label = step.get("agent_label", "")
+        return jsonify({'response': response, 'agent': agent_label})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
