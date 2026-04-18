@@ -492,6 +492,14 @@ def load_agents(_version: str = _AGENT_VERSION, _mtime: float = 0.0):
     return df, manager, sales
 
 
+# ── Load agents (before sidebar so st.stop() never fires inside the context manager) ──
+with st.spinner("Initializing agents..."):
+    try:
+        df, manager, sales = load_agents(_AGENT_VERSION, _csv_mtime())
+    except Exception as _e:
+        st.error(f"Failed to initialize agents: {_e}")
+        df, manager, sales = None, None, None
+
 # ── Sidebar ─────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
@@ -517,56 +525,49 @@ with st.sidebar:
     st.session_state.page = _selected
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    try:
-        with st.spinner("Initializing agents..."):
-            df, manager, sales = load_agents(_AGENT_VERSION, _csv_mtime())
-    except Exception as _e:
-        st.error(f"Failed to initialize agents: {_e}")
-        df, manager, sales = None, None, None
-
     if df is None or manager is None:
         st.error("Could not load data or initialize agents. Check that `mixed_online_retail.csv` is in the project folder.")
-        st.stop()
+    else:
+        st.markdown('<div class="section-label">Active Agents</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="section-label">Active Agents</div>', unsafe_allow_html=True)
+        _AGENT_COLORS = {
+            "Alex": "#7C3AED",
+            "Dana": "#2563EB",
+            "Maya": "#059669",
+            "Rey":  "#6D28D9",
+            "Aria": "#0891B2",
+        }
+        agents_info = [
+            ("Alex", "Sales Analyst", "💼"),
+            ("Dana", "Product Analyst", "📦"),
+            ("Maya", "Customer Analyst", "👤"),
+            ("Rey",  "Prediction Analyst", "🔮"),
+            ("Aria", "General Analyst · Code", "🧠"),
+        ]
+        for name, role, icon in agents_info:
+            color = _AGENT_COLORS.get(name, "#7C3AED")
+            st.markdown(f"""
+            <div class="agent-card" style="border-left: 3px solid {color};">
+                <div class="agent-dot" style="background: {color}; box-shadow: 0 0 6px {color};"></div>
+                <div>
+                    <div class="agent-name">{icon}&nbsp; {name}</div>
+                    <div class="agent-role">{role}</div>
+                </div>
+            </div>""", unsafe_allow_html=True)
 
-    _AGENT_COLORS = {
-        "Alex": "#7C3AED",
-        "Dana": "#2563EB",
-        "Maya": "#059669",
-        "Rey":  "#6D28D9",
-        "Aria": "#0891B2",
-    }
-    agents_info = [
-        ("Alex", "Sales Analyst", "💼"),
-        ("Dana", "Product Analyst", "📦"),
-        ("Maya", "Customer Analyst", "👤"),
-        ("Rey",  "Prediction Analyst", "🔮"),
-        ("Aria", "General Analyst · Code", "🧠"),
-    ]
-    for name, role, icon in agents_info:
-        color = _AGENT_COLORS.get(name, "#7C3AED")
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown('<div class="section-label">Dataset</div>', unsafe_allow_html=True)
         st.markdown(f"""
-        <div class="agent-card" style="border-left: 3px solid {color};">
-            <div class="agent-dot" style="background: {color}; box-shadow: 0 0 6px {color};"></div>
-            <div>
-                <div class="agent-name">{icon}&nbsp; {name}</div>
-                <div class="agent-role">{role}</div>
-            </div>
+        <div style="color: #5B21B6; font-size: 12px; line-height: 2;">
+            📄 &nbsp;mixed_online_retail.csv<br>
+            🗂 &nbsp;{len(df):,} records loaded<br>
+            🌍 &nbsp;UK Online Retail
         </div>""", unsafe_allow_html=True)
 
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Dataset</div>', unsafe_allow_html=True)
-    st.markdown(f"""
-    <div style="color: #5B21B6; font-size: 12px; line-height: 2;">
-        📄 &nbsp;mixed_online_retail.csv<br>
-        🗂 &nbsp;{len(df):,} records loaded<br>
-        🌍 &nbsp;UK Online Retail
-    </div>""", unsafe_allow_html=True)
+# ── Stop main page rendering if agents failed to load ───────────────────────────
+if df is None or manager is None:
+    st.stop()
 
-
-# ════════════════════════════════════════════════════════
-# CANVAS RENDER HELPER
 # ════════════════════════════════════════════════════════
 # PAGE 1 — DASHBOARD
 # ════════════════════════════════════════════════════════
