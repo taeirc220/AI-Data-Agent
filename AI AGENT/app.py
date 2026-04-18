@@ -21,14 +21,7 @@ st.markdown("""
     #MainMenu { visibility: hidden; }
     footer    { visibility: hidden; }
     /* Collapse header to zero height so it takes no space and blocks nothing */
-    header {
-        height: 0 !important;
-        min-height: 0 !important;
-        padding: 0 !important;
-        visibility: hidden;
-        /* overflow: hidden omitted — on Chrome, overflow:hidden on a fixed element
-           creates a containing block / stacking context that mis-layers the sidebar */
-    }
+    header { visibility: hidden; }
 
     /* Single rule is enough and avoids Chrome layout recalculation side-effects */
     [data-testid="stSidebarCollapseButton"] { display: none !important; }
@@ -629,7 +622,7 @@ if st.session_state.page == "📊 Dashboard":
                 fillcolor="rgba(124,58,237,0.08)",
                 hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra></extra>",
             )
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+            st.plotly_chart(fig, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
     with dash_t2:
         top_countries = sales.get_top_countries_by_revenue(limit=5)
@@ -650,7 +643,7 @@ if st.session_state.page == "📊 Dashboard":
                 coloraxis_showscale=False,
             )
             fig2.update_traces(hovertemplate="<b>%{y}</b><br>£%{x:,.0f}<extra></extra>")
-            st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+            st.plotly_chart(fig2, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
     with dash_t3:
         top_products = sales.get_top_products_by_revenue(limit=8)
@@ -672,7 +665,7 @@ if st.session_state.page == "📊 Dashboard":
                 coloraxis_showscale=False,
             )
             fig3.update_traces(hovertemplate="<b>%{y}</b><br>£%{x:,.0f}<extra></extra>")
-            st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+            st.plotly_chart(fig3, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
     with dash_t4:
         hourly = sales.get_hourly_sales_distribution()
@@ -700,7 +693,7 @@ if st.session_state.page == "📊 Dashboard":
                 coloraxis_showscale=False,
             )
             fig4.update_traces(hovertemplate="<b>%{x}</b><br>£%{y:,.0f}<extra></extra>")
-            st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+            st.plotly_chart(fig4, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
 
 # ════════════════════════════════════════════════════════
@@ -730,7 +723,7 @@ elif st.session_state.page == "💬 AI Chat":
             st.markdown(msg["content"])
             for b64 in msg.get("charts", []):
                 img_bytes = base64.b64decode(b64)
-                st.image(img_bytes, use_container_width=True)
+                st.image(img_bytes, width='stretch')
 
     # ── Shared helper: run a request and push result to canvas ──────────────────
     def _process_request(user_input: str) -> None:
@@ -878,7 +871,7 @@ elif st.session_state.page == "🔮 Prediction":
                 st.markdown(msg["content"])
                 for b64 in msg.get("charts", []):
                     img_bytes = base64.b64decode(b64)
-                    st.image(img_bytes, use_container_width=True)
+                    st.image(img_bytes, width='stretch')
 
         def _process_pred_request(user_input: str) -> None:
             history = st.session_state.pred_messages[:-1]
@@ -1081,7 +1074,7 @@ elif st.session_state.page == "🔮 Prediction":
                         yaxis=dict(gridcolor="#E5E7EB", tickprefix="£", tickfont=dict(size=10), title=""),
                         title=dict(text=f"Last 12 months + 3-month linear forecast  ·  {trend_label}", font=dict(size=11, color="#8b949e")),
                     )
-                    st.plotly_chart(fig_fc, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+                    st.plotly_chart(fig_fc, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
                     if forecast_data.get("outlier_warning"):
                         st.warning(forecast_data["outlier_warning"], icon="⚠️")
@@ -1124,7 +1117,7 @@ elif st.session_state.page == "🔮 Prediction":
                         font=dict(size=11, color="#8b949e"),
                     ),
                 )
-                st.plotly_chart(fig_donut, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+                st.plotly_chart(fig_donut, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
             else:
                 st.info(churn_data.get("error", "Churn data unavailable."), icon="ℹ️")
 
@@ -1161,7 +1154,7 @@ elif st.session_state.page == "🔮 Prediction":
                     xaxis=dict(gridcolor="#E5E7EB", ticksuffix="%", tickfont=dict(size=10), title=""),
                     yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=9), title=""),
                 )
-                st.plotly_chart(fig_growth, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+                st.plotly_chart(fig_growth, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
             elif growth_data and "error" in growth_data[0]:
                 st.info(growth_data[0]["error"], icon="ℹ️")
 
@@ -1196,7 +1189,7 @@ elif st.session_state.page == "🔮 Prediction":
                     xaxis=dict(gridcolor="#E5E7EB", ticksuffix="%", tickfont=dict(size=10), title=""),
                     yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=9), title=""),
                 )
-                st.plotly_chart(fig_slow, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+                st.plotly_chart(fig_slow, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
             elif slow_data and "error" in slow_data[0]:
                 st.info(slow_data[0]["error"], icon="ℹ️")
 
@@ -1327,7 +1320,7 @@ elif st.session_state.page == "🔮 Prediction":
                             font=dict(size=11, color="#8b949e"),
                         ),
                     )
-                    st.plotly_chart(fig_prophet, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+                    st.plotly_chart(fig_prophet, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
         else:
             st.info(forecast_data.get("error", "Forecast unavailable."), icon="ℹ️")
 
@@ -1359,7 +1352,7 @@ elif st.session_state.page == "🔮 Prediction":
                         font=dict(size=11, color="#8b949e"),
                     ),
                 )
-                st.plotly_chart(fig_hist, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+                st.plotly_chart(fig_hist, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
                 fi = ml_churn_data.get("feature_importances", [])
                 if fi:
@@ -1385,7 +1378,7 @@ elif st.session_state.page == "🔮 Prediction":
                         yaxis=dict(gridcolor="#E5E7EB", tickfont=dict(size=10), title=""),
                         title=dict(text="Feature Importance", font=dict(size=11, color="#8b949e")),
                     )
-                    st.plotly_chart(fig_fi, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+                    st.plotly_chart(fig_fi, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
             else:
                 st.info(ml_churn_data.get("error", "Churn ML model unavailable"), icon="ℹ️")
 
@@ -1443,7 +1436,7 @@ elif st.session_state.page == "🔮 Prediction":
                         font=dict(size=11, color="#8b949e"),
                     ),
                 )
-                st.plotly_chart(fig_seg, use_container_width=True, config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
+                st.plotly_chart(fig_seg, width='stretch', config={"displayModeBar": True, "modeBarButtonsToRemove": ["pan2d","lasso2d","select2d","autoScale2d","zoomIn2d","zoomOut2d"], "displaylogo": False})
 
                 st.markdown('<div class="chart-title">Segment Summary</div>', unsafe_allow_html=True)
                 display_seg = seg_df[["label", "customer_count", "pct_of_total",
@@ -1462,7 +1455,7 @@ elif st.session_state.page == "🔮 Prediction":
                         "Avg Orders":          "{:.1f}",
                         "Avg Spend (£)":       "£{:,.0f}",
                     }),
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True,
                 )
             else:
