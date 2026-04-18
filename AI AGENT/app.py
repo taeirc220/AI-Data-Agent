@@ -29,19 +29,8 @@ st.markdown("""
         visibility: hidden;
     }
 
-    /* Layer 1: Hide the collapse (>>) button — sidebar IS the navigation, never let it disappear */
+    /* Hide the sidebar collapse button so users can't accidentally close the nav */
     [data-testid="stSidebarCollapseButton"] { display: none !important; }
-
-    /* Layer 2: Fallback — if sidebar is somehow collapsed, keep re-open button accessible */
-    [data-testid="stSidebarCollapsedControl"] {
-        display: block !important;
-        visibility: visible !important;
-        pointer-events: auto !important;
-        z-index: 999999 !important;
-        position: fixed !important;
-        top: 0.5rem !important;
-        left: 0.5rem !important;
-    }
 
     /* ── Base ── */
     .stApp { background-color: #F7F5FF; }
@@ -53,6 +42,8 @@ st.markdown("""
 
     /* ── Sidebar ── */
     [data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
         background: #EDE9FE !important;
         border-right: 1px solid #DDD6FE;
     }
@@ -526,8 +517,12 @@ with st.sidebar:
     st.session_state.page = _selected
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    with st.spinner("Initializing agents..."):
-        df, manager, sales = load_agents(_AGENT_VERSION, _csv_mtime())
+    try:
+        with st.spinner("Initializing agents..."):
+            df, manager, sales = load_agents(_AGENT_VERSION, _csv_mtime())
+    except Exception as _e:
+        st.error(f"Failed to initialize agents: {_e}")
+        df, manager, sales = None, None, None
 
     if df is None or manager is None:
         st.error("Could not load data or initialize agents. Check that `mixed_online_retail.csv` is in the project folder.")
