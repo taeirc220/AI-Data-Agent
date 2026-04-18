@@ -314,15 +314,20 @@ st.markdown("""
         box-shadow: 0 1px 4px rgba(109,40,217,0.07) !important;
         transition: border-color 0.15s, box-shadow 0.15s !important;
     }
+    /* Force all intermediate wrapper divs to white so nothing bleeds dark through */
+    [data-testid="stChatInput"] > div,
+    [data-testid="stChatInput"] > div > div {
+        background: #FFFFFF !important;
+    }
     [data-testid="stChatInput"]:focus-within {
         border-color: #7C3AED !important;
         box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important;
     }
     [data-testid="stChatInput"] textarea {
-        background: transparent !important;
+        background: #FFFFFF !important;
         border: none !important;
-        /* -webkit-text-fill-color overrides Streamlit's CSS variable for actual rendering */
         color: #1E1B4B !important;
+        /* -webkit-text-fill-color wins over Streamlit's CSS variable on Chromium-based browsers */
         -webkit-text-fill-color: #1E1B4B !important;
         caret-color: #7C3AED !important;
         font-size: 14px !important;
@@ -330,9 +335,10 @@ st.markdown("""
         line-height: 1.5 !important;
     }
     [data-testid="stChatInput"] textarea::placeholder {
-        color: #9CA3AF !important;
-        -webkit-text-fill-color: #9CA3AF !important;
+        color: #6B7280 !important;
+        -webkit-text-fill-color: #6B7280 !important;
         font-size: 14px !important;
+        opacity: 1 !important;
     }
     /* Send button only — identified by aria-label, not all buttons */
     [data-testid="stChatInput"] button[aria-label="Submit message"],
