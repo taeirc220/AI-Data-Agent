@@ -43,11 +43,13 @@ def api_prediction_chat():
 @prediction_bp.route('/api/prediction/metrics')
 @login_required
 def api_prediction_metrics():
-    from flask_agents import get_agents
+    from flask_agents import get_agents, get_manager_error
     df, manager, sales = get_agents()
 
     if df is None:
-        return jsonify({'error': 'Data not available'}), 500
+        return jsonify({'error': 'Data not loaded — check server logs.'}), 503
+    if manager is None:
+        return jsonify({'error': f'Prediction agent unavailable. {get_manager_error() or ""}'}), 503
 
     try:
         pa = manager.prediction_analyst
@@ -61,11 +63,13 @@ def api_prediction_metrics():
 @prediction_bp.route('/api/prediction/charts')
 @login_required
 def api_prediction_charts():
-    from flask_agents import get_agents
+    from flask_agents import get_agents, get_manager_error
     df, manager, sales = get_agents()
 
     if df is None:
-        return jsonify({'error': 'Data not available'}), 500
+        return jsonify({'error': 'Data not loaded — check server logs.'}), 503
+    if manager is None:
+        return jsonify({'error': f'Prediction agent unavailable. {get_manager_error() or ""}'}), 503
 
     try:
         pa = manager.prediction_analyst
