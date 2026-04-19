@@ -243,18 +243,17 @@ function renderCharts(d) {
 }
 
 Promise.all([
-  fetch('/api/kpis').then(r => r.json()),
-  fetch('/api/charts').then(r => r.json()),
+  fetch('/api/kpis').then(r => r.json()).catch(() => ({ error: 'KPI fetch failed' })),
+  fetch('/api/charts').then(r => r.json()).catch(() => ({ error: 'Charts fetch failed' })),
 ]).then(([kpiData, chartData]) => {
-  renderKpis(kpiData);
-  renderCharts(chartData);
+  try { renderKpis(kpiData); } catch(e) {
+    document.getElementById('kpi-row').innerHTML =
+      `<div style="grid-column:1/-1"><div class="alert-error">KPI render error: ${e.message}. <a href="/api/health" target="_blank" style="color:#a78bfa">Health</a></div></div>`;
+  }
+  try { renderCharts(chartData); } catch(e) {
+    console.error('Chart render error:', e);
+  }
   loader.classList.add('done');
-}).catch(() => {
-  loader.classList.add('done');
-  document.getElementById('kpi-row').innerHTML =
-    '<div style="grid-column:1/-1"><div class="alert-error">Failed to load data. ' +
-    '<a href="/api/health" target="_blank" style="color:#a78bfa">Check health status</a> · ' +
-    '<a href="" onclick="location.reload();return false;" style="color:#a78bfa">Retry</a></div></div>';
 });
 </script>
 {% endblock %}
