@@ -305,7 +305,6 @@
 </head>
 <body>
 
-{% if session.get('username') %}
 <aside class="sidebar">
   <div class="sidebar-logo">
     <a class="brand" href="{{ url_for('dashboard.main') }}">
@@ -363,15 +362,7 @@
     </div>
   </div>
 
-  <div class="sidebar-footer">
-    <div class="user-panel">
-      <div class="user-ava">{{ session.get('username', 'U')[0].upper() }}</div>
-      <div class="user-name">{{ session.get('username') }}</div>
-      <a href="{{ url_for('auth.logout') }}" class="btn-logout">out</a>
-    </div>
-  </div>
 </aside>
-{% endif %}
 
 <div class="main-content">
   {% block content %}{% endblock %}

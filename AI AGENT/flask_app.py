@@ -27,19 +27,17 @@ def create_app():
     )
     app.permanent_session_lifetime = timedelta(minutes=30)
 
-    from flask_routes.auth import auth_bp
     from flask_routes.dashboard import dashboard_bp
     from flask_routes.chat import chat_bp
     from flask_routes.prediction import prediction_bp
 
-    app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(prediction_bp)
 
     @app.route('/')
     def index():
-        return redirect(url_for('auth.login'))
+        return redirect(url_for('dashboard.main'))
 
     @app.errorhandler(404)
     def not_found(e):
