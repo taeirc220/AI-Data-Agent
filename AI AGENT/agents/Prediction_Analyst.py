@@ -38,6 +38,14 @@ try:
 except ImportError:
     _SHAP_AVAILABLE = False
 
+try:
+    from mlxtend.frequent_patterns import fpgrowth as _fpgrowth
+    from mlxtend.frequent_patterns import association_rules as _assoc_rules
+    from mlxtend.preprocessing import TransactionEncoder as _TransactionEncoder
+    _MLXTEND_AVAILABLE = True
+except ImportError:
+    _MLXTEND_AVAILABLE = False
+
 
 class PredictionAnalyst:
     def __init__(self, data_frame: pd.DataFrame):
@@ -86,6 +94,8 @@ class PredictionAnalyst:
         self._kmeans_model         = None   # trained KMeans
         self._kmeans_rfm_df        = None   # RFM DataFrame with cluster labels
         self._kmeans_metrics       = None   # dict: inertia, silhouette score
+        self._optimal_k            = None   # best K from silhouette search
+        self._k_silhouette_scores  = None   # dict: k -> silhouette score
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -103,7 +113,8 @@ class PredictionAnalyst:
         Shared by the churn classifier and KMeans segmentation.
 
         Columns: customer_id, recency_days, frequency, monetary,
-                 avg_basket_size, purchase_count.
+                 avg_basket_size, purchase_count, return_rate,
+                 purchase_span_days, std_basket_size.
         Returns None if required columns are missing or data is insufficient.
         """
         if not (self._has_customer_id and self._has_invoice_date
@@ -123,6 +134,7 @@ class PredictionAnalyst:
             sales_df.groupby("Customer ID")
             .agg(
                 last_purchase=("InvoiceDate", "max"),
+                first_purchase=("InvoiceDate", "min"),
                 frequency=("Invoice", "nunique"),
                 monetary=("Revenue", "sum"),
                 purchase_count=("Quantity", "sum"),
@@ -130,12 +142,45 @@ class PredictionAnalyst:
             .reset_index()
         )
 
-        rfm["recency_days"]    = (self._reference_date - rfm["last_purchase"]).dt.days
-        rfm["avg_basket_size"] = rfm["monetary"] / rfm["frequency"]
-        rfm = rfm.drop(columns=["last_purchase"])
+        rfm["recency_days"]      = (self._reference_date - rfm["last_purchase"]).dt.days
+        rfm["purchase_span_days"] = (rfm["last_purchase"] - rfm["first_purchase"]).dt.days
+        rfm["avg_basket_size"]   = rfm["monetary"] / rfm["frequency"]
+        rfm = rfm.drop(columns=["last_purchase", "first_purchase"])
         rfm = rfm.rename(columns={"Customer ID": "customer_id"})
         rfm = rfm.dropna()
         rfm = rfm[rfm["monetary"] > 0]
+
+        # ── Return rate: invoices with net-negative quantity per customer ─────
+        if self._has_quantity and self._has_invoice and self._has_customer_id:
+            returns_df = self.df[self.df["Quantity"] < 0]
+            if not returns_df.empty:
+                return_invoices = (
+                    returns_df.groupby("Customer ID")["Invoice"]
+                    .nunique()
+                    .rename("return_invoices")
+                )
+                rfm = rfm.join(return_invoices, on="customer_id", how="left")
+                rfm["return_invoices"] = rfm["return_invoices"].fillna(0)
+            else:
+                rfm["return_invoices"] = 0
+        else:
+            rfm["return_invoices"] = 0
+
+        rfm["return_rate"] = rfm["return_invoices"] / rfm["frequency"].replace(0, np.nan)
+        rfm["return_rate"] = rfm["return_rate"].fillna(0.0)
+        rfm = rfm.drop(columns=["return_invoices"])
+
+        # ── Std dev of order values (spending consistency signal) ─────────────
+        basket_std = (
+            sales_df.groupby(["Customer ID", "Invoice"])["Revenue"]
+            .sum()
+            .groupby(level=0)
+            .std()
+            .fillna(0.0)
+            .rename("std_basket_size")
+        )
+        rfm = rfm.join(basket_std, on="customer_id", how="left")
+        rfm["std_basket_size"] = rfm["std_basket_size"].fillna(0.0)
 
         return rfm
 
@@ -226,8 +271,13 @@ class PredictionAnalyst:
     ) -> dict:
         """Trains a Random Forest churn classifier on RFM features and returns
         ML-derived churn probability scores for customers. More accurate than a
-        simple inactivity threshold — the model learns from patterns in Recency,
-        Frequency, Monetary value, basket size, and purchase count.
+        simple inactivity threshold — the model learns from 8 features:
+        Recency, Frequency, Monetary, Basket Size, Purchase Count, Return Rate,
+        Purchase Span, and Spending Variability (std basket size).
+
+        Return Rate is derived from negative-Quantity rows (refunds/cancellations)
+        and acts as a churn signal — customers who return items frequently are
+        statistically more likely to churn.
 
         Use this for deep churn analysis: 'who is most likely to leave?',
         'what drives churn?', 'show me churn probabilities with feature importance'.
@@ -252,7 +302,10 @@ class PredictionAnalyst:
         rfm = rfm.copy()
         rfm["churned"] = (rfm["recency_days"] >= churn_threshold_days).astype(int)
 
-        feature_cols = ["recency_days", "frequency", "monetary", "avg_basket_size", "purchase_count"]
+        feature_cols = [
+            "recency_days", "frequency", "monetary", "avg_basket_size",
+            "purchase_count", "return_rate", "purchase_span_days", "std_basket_size",
+        ]
         X = rfm[feature_cols].values
         y = rfm["churned"].values
 
@@ -359,11 +412,18 @@ class PredictionAnalyst:
             "high_risk_customers":     high_risk_list,
             "feature_importances":     feature_importances,
             "shap_summary":            shap_summary,
+            "returns_signal_note": (
+                "return_rate captures refund/cancellation behaviour as a churn signal. "
+                "Customers with high return rates are statistically more likely to churn. "
+                "purchase_span_days rewards long-tenure customers; std_basket_size "
+                "captures spending consistency."
+            ),
             "note": (
                 "Churn probability is ML-estimated (0–100%). "
                 "Customers with score ≥50% are flagged high-risk. "
-                "Model: Random Forest trained on Recency, Frequency, Monetary, "
-                "Basket Size, and Purchase Count."
+                "Model: Random Forest trained on 8 features — Recency, Frequency, "
+                "Monetary, Basket Size, Purchase Count, Return Rate, "
+                "Purchase Span, and Spending Variability."
             ),
         }
 
@@ -371,34 +431,64 @@ class PredictionAnalyst:
     # KMeans Customer Segmentation
     # ──────────────────────────────────────────────────────────────────────────
 
-    def get_customer_segments(self, n_clusters: int = 4) -> dict:
+    def _find_optimal_k(self, X_scaled: "np.ndarray", k_range=range(2, 9)) -> int:
+        """
+        Runs KMeans for each k in k_range, computes silhouette scores, and
+        returns the k with the highest score. Caches scores in _k_silhouette_scores.
+        """
+        scores: dict[int, float] = {}
+        for k in k_range:
+            if len(X_scaled) < k * 5:
+                break
+            km = KMeans(n_clusters=k, random_state=42, n_init="auto", max_iter=200)
+            labels = km.fit_predict(X_scaled)
+            sample_size = min(500, len(X_scaled))
+            idx = np.random.RandomState(42).choice(len(X_scaled), sample_size, replace=False)
+            scores[k] = float(silhouette_score(X_scaled[idx], labels[idx]))
+        self._k_silhouette_scores = scores
+        return max(scores, key=scores.get) if scores else 4
+
+    def get_customer_segments(self, n_clusters: int = None) -> dict:
         """Performs RFM-based customer segmentation using KMeans clustering.
-        Assigns business-meaningful labels to each cluster based on their
-        Recency, Frequency, and Monetary centroid rankings:
-        Champions (best), Loyal Customers, At-Risk, Hibernating.
+        Automatically determines the optimal number of clusters (K) via
+        Silhouette Analysis across k=2..8, then assigns business-meaningful
+        labels based on Recency, Frequency, and Monetary centroid rankings:
+        Champions (best), Loyal Customers, At-Risk, Hibernating, Lost, New Customers.
 
         Use this for 'segment our customers', 'who are our Champions?',
-        'which customers are at risk of leaving?', 'RFM analysis'.
+        'which customers are at risk of leaving?', 'RFM analysis', 'clustering'.
 
         Returns per-segment statistics (size, avg RFM), silhouette quality score,
-        and a full summary table.
+        the full K-search silhouette table, and a cluster summary.
 
         Args:
-            n_clusters: Number of segments to create (default 4, range 2–6).
+            n_clusters: Number of segments to create. Pass None (default) to
+                        auto-detect the optimal K via Silhouette Analysis (range 2–8).
+                        Pass an explicit integer to override (clamped to 2–8).
         """
         if not _SKLEARN_AVAILABLE:
             return {"error": "scikit-learn is not installed. Run: pip install scikit-learn>=1.3.0"}
 
-        n_clusters = max(2, min(n_clusters, 6))
-
         rfm = self._build_rfm_dataframe()
-        if rfm is None or len(rfm) < n_clusters * 5:
-            return {"error": f"Insufficient customer data for {n_clusters}-cluster segmentation."}
+        if rfm is None or len(rfm) < 10:
+            return {"error": "Insufficient customer data for segmentation (need ≥10 customers with complete RFM data)."}
 
-        # ── Scale and cluster ─────────────────────────────────────────────────
+        # ── Scale features ────────────────────────────────────────────────────
         features = ["recency_days", "frequency", "monetary"]
         scaler   = StandardScaler()
         X_scaled = scaler.fit_transform(rfm[features].values)
+
+        # ── Determine K ───────────────────────────────────────────────────────
+        if n_clusters is None:
+            # Auto-select: run silhouette search only when cache is empty
+            if self._optimal_k is None:
+                self._optimal_k = self._find_optimal_k(X_scaled)
+            n_clusters = self._optimal_k
+        else:
+            n_clusters = max(2, min(int(n_clusters), 8))
+
+        if len(rfm) < n_clusters * 5:
+            return {"error": f"Insufficient customer data for {n_clusters}-cluster segmentation."}
 
         if self._kmeans_model is None or self._kmeans_model.n_clusters != n_clusters:
             km = KMeans(
@@ -419,6 +509,11 @@ class PredictionAnalyst:
                 "n_clusters":        n_clusters,
                 "inertia":           round(float(km.inertia_), 2),
                 "silhouette_score":  round(sil_score, 4),
+                "k_selected_by":     "silhouette_auto" if self._optimal_k == n_clusters else "user_override",
+                "silhouette_scores_by_k": {
+                    str(k): round(v, 4)
+                    for k, v in (self._k_silhouette_scores or {}).items()
+                },
             }
 
         rfm = rfm.copy()
@@ -486,7 +581,9 @@ class PredictionAnalyst:
             "all_segments_count": segment_counts,
             "note": (
                 "Segments derived from Recency, Frequency, and Monetary value "
-                "using KMeans clustering. Labels ranked by combined RFM score — "
+                "using KMeans clustering. Optimal K chosen automatically via "
+                "Silhouette Analysis — see model_metadata.silhouette_scores_by_k. "
+                "Labels ranked by combined RFM score: "
                 "Champions have the best profile (recent, frequent, high spend)."
             ),
         }
@@ -551,17 +648,26 @@ class PredictionAnalyst:
                     daily_seasonality=False,
                     seasonality_mode="multiplicative",
                     interval_width=0.95,
-                    changepoint_prior_scale=0.05,
+                    changepoint_prior_scale=0.15,   # was 0.05 — captures real trend inflections
+                    seasonality_prior_scale=15.0,   # stronger e-commerce seasonality signal
                 )
                 m.add_country_holidays(country_name="UK")
+                m.add_seasonality(name="monthly", period=30.5, fourier_order=5)
                 m.fit(daily)
             self._prophet_model = m
 
-        # ── Generate forecast ─────────────────────────────────────────────────
-        future = self._prophet_model.make_future_dataframe(
-            periods=horizon_months * 30,
+        # ── Generate forecast (exact daily range → trimmed to N months) ───────
+        last_date    = daily["ds"].max()
+        future_dates = pd.date_range(
+            start=last_date + pd.Timedelta(days=1),
+            periods=horizon_months * 31,   # over-generate; trimmed to horizon_months below
             freq="D",
         )
+        future = pd.DataFrame({
+            "ds": pd.concat(
+                [daily["ds"], pd.Series(future_dates)], ignore_index=True
+            )
+        })
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             forecast_df = self._prophet_model.predict(future)
@@ -606,7 +712,7 @@ class PredictionAnalyst:
         return {
             "forecast":               forecasts,
             "trend":                  trend,
-            "model":                  "Prophet (multiplicative seasonality, UK holidays, 95% CI)",
+            "model":                  "Prophet (multiplicative, changepoint_prior=0.15, monthly+weekly+yearly seasonality, UK holidays, 95% CI)",
             "training_days":          len(daily),
             "training_start":         str(daily["ds"].min().date()),
             "training_end":           str(daily["ds"].max().date()),
@@ -846,6 +952,208 @@ class PredictionAnalyst:
             }
             for desc, row in top.iterrows()
         ]
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Market Basket Analysis
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def get_market_basket_rules(
+        self,
+        min_support: float = 0.01,
+        min_confidence: float = 0.3,
+        top_n: int = 15,
+    ) -> dict:
+        """Discovers which products are frequently bought together using
+        Association Rule Mining (FP-Growth algorithm when mlxtend is installed,
+        co-occurrence matrix fallback otherwise).
+
+        Use this for: 'frequently bought together', 'cross-sell opportunities',
+        'product pairs', 'what do customers buy with X?', 'market basket analysis',
+        'association rules', 'bundling recommendations'.
+
+        Returns the top N rules sorted by lift (descending). Lift > 1 means
+        items are bought together more than by chance; Lift > 3 is a strong signal.
+
+        Args:
+            min_support: Minimum fraction of transactions containing the itemset
+                         (default 0.01 = 1%). Lower values find rarer pairs.
+            min_confidence: Minimum P(consequent | antecedent) (default 0.3 = 30%).
+            top_n: How many rules to return (default 15, max 50).
+        """
+        if not self._has_invoice:
+            return self._missing_col_error("Invoice")
+        if not self._has_description:
+            return self._missing_col_error("Description")
+        if not self._has_quantity:
+            return self._missing_col_error("Quantity")
+
+        top_n = min(top_n, 50)
+
+        # ── Filter to positive sales only ─────────────────────────────────────
+        sales_df = self._dated_df[self._dated_df["Quantity"] > 0].copy() if self._has_valid_dates \
+                   else self.df[self.df["Quantity"] > 0].copy()
+        sales_df = sales_df.dropna(subset=["Invoice", "Description"])
+
+        if sales_df.empty:
+            return {"error": "No valid sales transactions found for basket analysis."}
+
+        # ── Performance guard: sample large datasets ──────────────────────────
+        MAX_INVOICES = 150_000
+        unique_invoices = sales_df["Invoice"].nunique()
+        sampled = False
+
+        if unique_invoices > MAX_INVOICES:
+            rng = np.random.RandomState(42)
+            sampled_inv = rng.choice(
+                sales_df["Invoice"].unique(), MAX_INVOICES, replace=False
+            )
+            sales_df = sales_df[sales_df["Invoice"].isin(sampled_inv)]
+            sampled = True
+            unique_invoices = MAX_INVOICES
+
+        # ── Build basket: Invoice × Product boolean matrix ────────────────────
+        if _MLXTEND_AVAILABLE:
+            # FP-Growth path (fast, memory-efficient)
+            basket_sets = (
+                sales_df.groupby("Invoice")["Description"]
+                .apply(list)
+                .tolist()
+            )
+
+            te = _TransactionEncoder()
+            te_array = te.fit_transform(basket_sets)
+            basket_df = pd.DataFrame(te_array, columns=te.columns_)
+
+            frequent_items = _fpgrowth(
+                basket_df,
+                min_support=min_support,
+                use_colnames=True,
+            )
+
+            if frequent_items.empty:
+                return {
+                    "rules": [],
+                    "total_rules_found": 0,
+                    "total_transactions_analysed": unique_invoices,
+                    "min_support": min_support,
+                    "min_confidence": min_confidence,
+                    "engine": "FP-Growth (mlxtend)",
+                    "sampled": sampled,
+                    "note": (
+                        f"No itemsets met the min_support={min_support} threshold. "
+                        "Try lowering min_support (e.g. 0.005)."
+                    ),
+                }
+
+            rules_df = _assoc_rules(
+                frequent_items,
+                metric="confidence",
+                min_threshold=min_confidence,
+            )
+
+            if rules_df.empty:
+                return {
+                    "rules": [],
+                    "total_rules_found": 0,
+                    "total_transactions_analysed": unique_invoices,
+                    "min_support": min_support,
+                    "min_confidence": min_confidence,
+                    "engine": "FP-Growth (mlxtend)",
+                    "sampled": sampled,
+                    "note": (
+                        f"No rules met min_confidence={min_confidence}. "
+                        "Try lowering min_confidence (e.g. 0.2)."
+                    ),
+                }
+
+            rules_df = rules_df.sort_values("lift", ascending=False).head(top_n)
+
+            rules_out = [
+                {
+                    "antecedent":  ", ".join(sorted(row["antecedents"])),
+                    "consequent":  ", ".join(sorted(row["consequents"])),
+                    "support":     round(float(row["support"]), 4),
+                    "confidence":  round(float(row["confidence"]), 3),
+                    "lift":        round(float(row["lift"]), 2),
+                }
+                for _, row in rules_df.iterrows()
+            ]
+            engine = "FP-Growth (mlxtend)"
+
+        else:
+            # ── Fallback: co-occurrence matrix ────────────────────────────────
+            import itertools
+            from collections import defaultdict
+
+            item_counts: dict = defaultdict(int)
+            pair_counts: dict = defaultdict(int)
+            n_transactions = 0
+
+            for _, grp in sales_df.groupby("Invoice")["Description"]:
+                items = list(grp.unique())
+                if len(items) < 2:
+                    continue
+                n_transactions += 1
+                for item in items:
+                    item_counts[item] += 1
+                for a, b in itertools.combinations(sorted(items), 2):
+                    pair_counts[(a, b)] += 1
+
+            if n_transactions == 0 or not pair_counts:
+                return {
+                    "rules": [],
+                    "total_rules_found": 0,
+                    "total_transactions_analysed": unique_invoices,
+                    "min_support": min_support,
+                    "min_confidence": min_confidence,
+                    "engine": "co-occurrence matrix (mlxtend not installed)",
+                    "sampled": sampled,
+                    "note": "No multi-item baskets found.",
+                }
+
+            rules_out = []
+            for (a, b), co_count in pair_counts.items():
+                support = co_count / n_transactions
+                if support < min_support:
+                    continue
+                conf_ab = co_count / item_counts[a]
+                conf_ba = co_count / item_counts[b]
+                lift = support / (
+                    (item_counts[a] / n_transactions) * (item_counts[b] / n_transactions)
+                )
+                if conf_ab >= min_confidence:
+                    rules_out.append({
+                        "antecedent": a, "consequent": b,
+                        "support": round(support, 4),
+                        "confidence": round(conf_ab, 3),
+                        "lift": round(lift, 2),
+                    })
+                if conf_ba >= min_confidence:
+                    rules_out.append({
+                        "antecedent": b, "consequent": a,
+                        "support": round(support, 4),
+                        "confidence": round(conf_ba, 3),
+                        "lift": round(lift, 2),
+                    })
+
+            rules_out.sort(key=lambda x: x["lift"], reverse=True)
+            rules_out = rules_out[:top_n]
+            engine = "co-occurrence matrix (mlxtend not installed)"
+
+        return {
+            "rules":                        rules_out,
+            "total_rules_found":            len(rules_out),
+            "total_transactions_analysed":  unique_invoices,
+            "min_support":                  min_support,
+            "min_confidence":               min_confidence,
+            "engine":                       engine,
+            "sampled":                      sampled,
+            "note": (
+                "Lift > 1 means items are bought together more than by chance. "
+                "Lift > 3 is a strong cross-sell signal. "
+                "Confidence = P(consequent | antecedent purchased)."
+            ),
+        }
 
     # ──────────────────────────────────────────────────────────────────────────
     # Customer behaviour predictions

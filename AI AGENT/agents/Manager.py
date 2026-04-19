@@ -311,6 +311,7 @@ class ManagerAgent:
             self.prediction_analyst.get_customer_clv_estimate,
             self.prediction_analyst.get_churn_probability_scores,
             self.prediction_analyst.get_customer_segments,
+            self.prediction_analyst.get_market_basket_rules,
             execute_python,
         ]
 
@@ -322,9 +323,10 @@ class ManagerAgent:
             "YOUR TOOLS:\n"
             "- get_revenue_forecast: Prophet-based revenue forecast with 95% confidence intervals.\n"
             "- get_churn_risk_summary: Fast rule-based churn count (quick overview).\n"
-            "- get_churn_probability_scores: ML churn probabilities per customer with feature importance.\n"
-            "- get_customer_segments: KMeans RFM segmentation (Champions/Loyal/At-Risk/Hibernating).\n"
+            "- get_churn_probability_scores: ML churn probabilities per customer with 8-feature RF model.\n"
+            "- get_customer_segments: KMeans RFM segmentation, auto-selects optimal K via Silhouette Analysis.\n"
             "- get_at_risk_customers: Top at-risk customers sorted by spend.\n"
+            "- get_market_basket_rules: FP-Growth association rules — 'frequently bought together', cross-sell.\n"
             "- get_product_demand_trend, get_high_growth_products, get_slow_movers: demand analysis.\n"
             "- get_customer_clv_estimate: projected Customer Lifetime Value for a specific customer.\n"
             "- get_repeat_purchase_probability: cohort-level repeat purchase rate.\n"
@@ -343,7 +345,8 @@ class ManagerAgent:
             "- 'customer segments' / 'RFM' / 'Champions' / 'clustering' → get_customer_segments\n"
             "- 'forecast' / 'next month/quarter' / 'predict revenue' → get_revenue_forecast\n"
             "- 'CLV for customer X' → get_customer_clv_estimate\n"
-            "- 'feature importance' / 'what drives churn' → get_churn_probability_scores\n\n"
+            "- 'feature importance' / 'what drives churn' → get_churn_probability_scores\n"
+            "- 'frequently bought together' / 'cross-sell' / 'product pairs' / 'market basket' / 'association rules' → get_market_basket_rules\n\n"
             "── RESPONSE FORMAT ──────────────────────────────────────────────────────\n"
             "Structure EVERY response like this:\n\n"
             "**[Short headline — one sentence max answering the question directly]**\n\n"
@@ -549,6 +552,8 @@ class ManagerAgent:
             "high-growth products, slow movers, customer lifetime value (CLV), "
             "repeat purchase probability, customer segmentation, RFM analysis, "
             "clustering, ML model results, feature importance, churn probability, "
+            "market basket analysis, association rules, frequently bought together, "
+            "cross-sell, product pairs, bundling recommendations, "
             "'what will happen', 'predict', 'forecast', 'at risk', "
             "'next month/quarter', 'which products are dying/taking off', "
             "'Champions', 'Loyal customers', 'Hibernating', 'segment', 'segments'\n"
