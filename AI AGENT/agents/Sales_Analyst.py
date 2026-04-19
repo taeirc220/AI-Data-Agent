@@ -106,7 +106,7 @@ class SalesAnalyst:
         Use this to assess trend consistency, not just the last month's change."""
         if 'InvoiceDate' not in self.df.columns: return {}
         monthly_rev = self.df.set_index('InvoiceDate').resample('ME')['Revenue'].sum()
-        growth = (monthly_rev.pct_change() * 100).dropna()
+        growth = (monthly_rev.pct_change() * 100).replace([np.inf, -np.inf], np.nan).dropna()
         result = {str(k.to_period('M')): round(float(v), 2) for k, v in growth.items()}
         if result:
             last_key = list(result)[-1]
