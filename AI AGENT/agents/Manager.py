@@ -205,7 +205,7 @@ class ManagerAgent:
         ]
 
         sales_prompt = (
-            "You are Alex, a Sales Analyst for an e-commerce business.\n\n"
+            "You are Idan, a Sales Analyst for an e-commerce business.\n\n"
             "You answer simple, direct sales questions using your tools. "
             "For anything that requires custom calculation, filtering, trends, "
             "forecasting, or a chart, use execute_python to write pandas code.\n\n"
@@ -1105,7 +1105,7 @@ class ManagerAgent:
         invoke_config = {"recursion_limit": 30}
 
         executor_map = {
-            "sales":      (self.sales_executor,      "Sales Agent (Alex)"),
+            "sales":      (self.sales_executor,      "Sales Agent (Idan)"),
             "product":    (self.product_executor,    "Product Agent (Dana)"),
             "customer":   (self.customer_executor,   "Customer Agent (Maya)"),
             "prediction": (self.prediction_executor, "Prediction Agent (Rey)"),

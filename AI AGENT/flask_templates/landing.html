@@ -477,57 +477,110 @@
     }
 
     /* ── How It Works ── */
-    .steps-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0;
+    .hiw-section {
       position: relative;
-      max-width: 900px;
+    }
+    .hiw-section::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px;
+      height: 500px;
+      background: radial-gradient(ellipse, rgba(var(--accent-rgb), 0.055) 0%, transparent 68%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .steps-flow {
+      display: grid;
+      grid-template-columns: 1fr 48px 1fr 48px 1fr;
+      align-items: center;
+      max-width: 960px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+    .step-connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(var(--accent-rgb), 0.28);
     }
     .step-card {
       background: var(--card);
       border: 1px solid var(--card-border);
       border-radius: var(--radius);
       box-shadow: var(--card-shadow);
-      padding: 32px 28px 28px;
+      padding: 32px 26px 26px;
       display: flex;
       flex-direction: column;
       align-items: flex-start;
       position: relative;
-      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      overflow: hidden;
+      transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
     }
-    .step-card:hover {
-      border-color: rgba(var(--accent-rgb), 0.35);
-      transform: translateY(-3px);
-      box-shadow: 0 8px 32px rgba(var(--accent-rgb), 0.10);
-    }
-    .step-card:not(:last-child)::after {
+    .step-card::before {
       content: '';
       position: absolute;
-      right: -1px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 1px;
-      height: 40%;
-      background: var(--card-border);
+      top: 0; left: 16px; right: 16px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.5), transparent);
+      opacity: 0;
+      transition: opacity 0.25s;
     }
-    .step-num {
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 2px;
-      color: var(--accent);
-      margin-bottom: 16px;
+    .step-card:hover {
+      border-color: rgba(var(--accent-rgb), 0.32);
+      transform: translateY(-5px);
+      box-shadow: 0 16px 48px rgba(var(--accent-rgb), 0.12);
+    }
+    .step-card:hover::before { opacity: 1; }
+    .step-ghost {
+      position: absolute;
+      bottom: -8px; right: 14px;
+      font-size: 88px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -5px;
+      color: rgba(var(--accent-rgb), 0.045);
+      pointer-events: none;
       font-variant-numeric: tabular-nums;
+      user-select: none;
     }
-    .step-icon-wrap {
-      width: 44px; height: 44px;
-      border-radius: 10px;
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--accent);
       background: rgba(var(--accent-rgb), 0.10);
       border: 1px solid rgba(var(--accent-rgb), 0.22);
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 18px;
+      border-radius: 20px;
+      padding: 3px 10px;
+      margin-bottom: 20px;
+    }
+    .step-badge-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
       flex-shrink: 0;
+    }
+    .step-icon-wrap {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      background: rgba(var(--accent-rgb), 0.08);
+      border: 1px solid rgba(var(--accent-rgb), 0.18);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 20px;
+      flex-shrink: 0;
+      transition: background 0.25s, border-color 0.25s;
+    }
+    .step-card:hover .step-icon-wrap {
+      background: rgba(var(--accent-rgb), 0.14);
+      border-color: rgba(var(--accent-rgb), 0.32);
     }
     .step-icon-wrap svg { color: var(--accent); }
     .step-title {
@@ -540,14 +593,29 @@
     .step-desc {
       font-size: 13px;
       color: var(--muted);
-      line-height: 1.6;
+      line-height: 1.65;
+      flex: 1;
+    }
+    .step-outcome {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(var(--accent-rgb), 0.08);
+      border: 1px solid rgba(var(--accent-rgb), 0.18);
+      border-radius: 6px;
+      padding: 4px 10px;
+      margin-top: 20px;
     }
     @media (max-width: 700px) {
-      .steps-grid {
+      .steps-flow {
         grid-template-columns: 1fr;
         gap: 12px;
       }
-      .step-card:not(:last-child)::after { display: none; }
+      .step-connector { display: none; }
+      .step-ghost { font-size: 64px; }
     }
 
     /* ── Page-exit overlay ── */
@@ -621,14 +689,15 @@
   </div>
 
   <!-- ── How It Works ── -->
-  <section>
+  <section class="hiw-section">
     <p class="section-label reveal">How It Works</p>
     <h2 class="section-title reveal">From data to decisions<br>in three steps.</h2>
 
-    <div class="steps-grid">
+    <div class="steps-flow">
 
       <div class="step-card reveal reveal-delay-1">
-        <div class="step-num">01</div>
+        <span class="step-ghost">01</span>
+        <div class="step-badge"><span class="step-badge-dot"></span>Step 01</div>
         <div class="step-icon-wrap">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="1.8"
@@ -640,10 +709,20 @@
         </div>
         <div class="step-title">Upload Your Data</div>
         <div class="step-desc">Bring any retail or business dataset. The platform ingests it instantly — no setup, no schema mapping required.</div>
+        <span class="step-outcome">→ Data ready in seconds</span>
+      </div>
+
+      <div class="step-connector reveal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M13 6l6 6-6 6"/>
+        </svg>
       </div>
 
       <div class="step-card reveal reveal-delay-2">
-        <div class="step-num">02</div>
+        <span class="step-ghost">02</span>
+        <div class="step-badge"><span class="step-badge-dot"></span>Step 02</div>
         <div class="step-icon-wrap">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="1.8"
@@ -655,11 +734,21 @@
           </svg>
         </div>
         <div class="step-title">Consult the Agents</div>
-        <div class="step-desc">Ask Alex about sales trends, Dana about product demand, Maya about customers, or Rey for ML forecasts — in plain English.</div>
+        <div class="step-desc">Ask Idan about sales trends, Dana about product demand, Maya about customers, or Rey for ML forecasts — in plain English.</div>
+        <span class="step-outcome">→ Instant expert answers</span>
+      </div>
+
+      <div class="step-connector reveal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M13 6l6 6-6 6"/>
+        </svg>
       </div>
 
       <div class="step-card reveal reveal-delay-3">
-        <div class="step-num">03</div>
+        <span class="step-ghost">03</span>
+        <div class="step-badge"><span class="step-badge-dot"></span>Step 03</div>
         <div class="step-icon-wrap">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="1.8"
@@ -669,6 +758,7 @@
         </div>
         <div class="step-title">Get Your Strategy</div>
         <div class="step-desc">The AI Consultant synthesises all agents' findings into a plain-English action plan — what to do, why it matters, and how to do it.</div>
+        <span class="step-outcome">→ Actionable in minutes</span>
       </div>
 
     </div>
@@ -681,10 +771,10 @@
     <div class="agent-grid">
 
       <div class="agent-card reveal reveal-delay-1">
-        <img class="agent-avatar" src="{{ url_for('static', filename='avatars/alex.png') }}" alt="Alex">
+        <img class="agent-avatar" src="{{ url_for('static', filename='avatars/alex.png') }}" alt="Idan">
         <div class="agent-info">
           <div class="agent-tag">Sales</div>
-          <div class="agent-name">Alex</div>
+          <div class="agent-name">Idan</div>
           <div class="agent-role">Sales trends, anomalies & revenue risk</div>
         </div>
       </div>
