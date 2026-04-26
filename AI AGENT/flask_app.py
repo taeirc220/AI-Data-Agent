@@ -1,7 +1,7 @@
 import os
 import sys
 from datetime import timedelta
-from flask import Flask, redirect, url_for
+from flask import Flask
 from dotenv import load_dotenv
 
 # Make sure the AI AGENT directory and agents/ subfolder are on the path
@@ -39,7 +39,8 @@ def create_app():
 
     @app.route('/')
     def index():
-        return redirect(url_for('dashboard.main'))
+        from flask import render_template
+        return render_template('landing.html')
 
     @app.errorhandler(404)
     def not_found(e):

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Data Department</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #000;
+      --accent:      #78a0ff;
+      --accent-dim:  rgba(120,160,255,0.15);
+      --accent-glow: rgba(120,160,255,0.07);
+      --text:        rgba(240,240,250,0.88);
+      --muted:       rgba(240,240,250,0.40);
+      --dimmer:      rgba(240,240,250,0.18);
+      --card:        rgba(240,240,250,0.04);
+      --card-border: rgba(240,240,250,0.09);
+      --radius:      16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Nav ───────────────────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 48px;
+      height: 64px;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    nav.scrolled {
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--card-border);
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent);
+      color: #000;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 9px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      letter-spacing: 0.1px;
+      transition: opacity 0.15s;
+    }
+    .nav-cta:hover { opacity: 0.82; }
+
+    /* ── Hero ──────────────────────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* dot-grid background */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(120,160,255,0.12) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 0%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* blue radial glow */
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(120,160,255,0.13) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-content { position: relative; z-index: 1; max-width: 720px; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(120,160,255,0.10);
+      border: 1px solid rgba(120,160,255,0.22);
+      border-radius: 20px;
+      padding: 5px 14px;
+      margin-bottom: 32px;
+    }
+    .eyebrow-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    .hero h1 {
+      font-size: clamp(44px, 7vw, 80px);
+      font-weight: 900;
+      line-height: 1.08;
+      letter-spacing: -2.5px;
+      color: rgba(240,240,250,0.95);
+      margin-bottom: 22px;
+    }
+    .hero h1 span { color: var(--accent); }
+
+    .hero-sub {
+      font-size: 17px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 44px;
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .cta-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 44px;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #000;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 14px 30px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 600;
+      padding: 14px 30px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      cursor: not-allowed;
+      position: relative;
+      text-decoration: none;
+    }
+    .btn-ghost .soon-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: rgba(120,160,255,0.15);
+      color: var(--accent);
+      border: 1px solid rgba(120,160,255,0.25);
+      border-radius: 6px;
+      padding: 2px 7px;
+    }
+
+    .tech-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+    .pill {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      background: rgba(240,240,250,0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 5px 13px;
+      letter-spacing: 0.2px;
+    }
+
+    /* ── Sections ──────────────────────────────────────────────────────── */
+    section {
+      padding: 100px 24px;
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .section-title {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 800;
+      letter-spacing: -1.2px;
+      color: rgba(240,240,250,0.92);
+      text-align: center;
+      margin-bottom: 60px;
+      line-height: 1.15;
+    }
+
+    /* ── Agent Grid ────────────────────────────────────────────────────── */
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    /* 5th card centered on its own row */
+    .agent-grid .agent-card:nth-child(5) {
+      grid-column: 1 / -1;
+      max-width: 420px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .agent-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 28px 28px 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      transition: background 0.2s, border-color 0.2s, transform 0.2s;
+      cursor: default;
+    }
+    .agent-card:hover {
+      background: rgba(240,240,250,0.065);
+      border-color: rgba(120,160,255,0.25);
+      transform: translateY(-2px);
+    }
+
+    .agent-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--card-border);
+    }
+    .agent-info { min-width: 0; }
+    .agent-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(240,240,250,0.92);
+      margin-bottom: 4px;
+      letter-spacing: -0.2px;
+    }
+    .agent-role {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .agent-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(120,160,255,0.10);
+      border: 1px solid rgba(120,160,255,0.20);
+      border-radius: 4px;
+      padding: 2px 8px;
+      margin-bottom: 8px;
+    }
+
+    /* ── Tech Stack ────────────────────────────────────────────────────── */
+    .stack-section {
+      text-align: center;
+      border-top: 1px solid var(--card-border);
+      border-bottom: 1px solid var(--card-border);
+      padding: 64px 24px;
+    }
+    .stack-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      max-width: 780px;
+      margin: 0 auto;
+    }
+    .stack-pill {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(240,240,250,0.55);
+      background: rgba(240,240,250,0.04);
+      border: 1px solid rgba(240,240,250,0.08);
+      border-radius: 8px;
+      padding: 8px 16px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .stack-pill:hover {
+      background: rgba(120,160,255,0.10);
+      color: var(--accent);
+      border-color: rgba(120,160,255,0.25);
+    }
+
+    /* ── Bottom CTA ────────────────────────────────────────────────────── */
+    .bottom-cta {
+      text-align: center;
+      padding: 100px 24px 80px;
+    }
+    .bottom-cta h2 {
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 900;
+      letter-spacing: -1.8px;
+      color: rgba(240,240,250,0.92);
+      margin-bottom: 16px;
+      line-height: 1.1;
+    }
+    .bottom-cta p {
+      font-size: 16px;
+      color: var(--muted);
+      margin-bottom: 40px;
+    }
+    .bottom-btns {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Footer ────────────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 28px 24px;
+      border-top: 1px solid var(--card-border);
+      font-size: 13px;
+      color: var(--dimmer);
+      letter-spacing: 0.2px;
+    }
+
+    /* ── Scroll reveal ─────────────────────────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-delay-1 { transition-delay: 0.08s; }
+    .reveal-delay-2 { transition-delay: 0.16s; }
+    .reveal-delay-3 { transition-delay: 0.24s; }
+    .reveal-delay-4 { transition-delay: 0.32s; }
+    .reveal-delay-5 { transition-delay: 0.40s; }
+
+    /* ── Mobile ────────────────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      nav { padding: 0 20px; }
+      .agent-grid { grid-template-columns: 1fr; }
+      .agent-grid .agent-card:nth-child(5) {
+        grid-column: unset;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Nav ── -->
+  <nav id="nav">
+    <a href="/" class="nav-logo">
+      <svg width="28" height="28" viewBox="0 0 72 72" fill="none">
+        <circle cx="36" cy="36" r="26" stroke="rgba(120,160,255,0.35)" stroke-width="1.5"/>
+        <ellipse cx="36" cy="36" rx="26" ry="11" stroke="rgba(120,160,255,0.18)" stroke-width="1.2"/>
+        <circle cx="36" cy="10" r="5" fill="#78a0ff" style="filter:drop-shadow(0 0 8px rgba(120,160,255,0.7))"/>
+        <circle cx="36" cy="36" r="5" fill="rgba(120,160,255,0.2)" stroke="rgba(120,160,255,0.45)" stroke-width="1"/>
+      </svg>
+      AI Data Department
+    </a>
+    <a href="/login" class="nav-cta">Try Demo →</a>
+  </nav>
+
+  <!-- ── Hero ── -->
+  <div class="hero">
+    <div class="hero-content">
+      <div class="eyebrow">
+        <span class="eyebrow-dot"></span>
+        Portfolio Project
+      </div>
+      <h1>Five AI Analysts.<br><span>One Platform.</span></h1>
+      <p class="hero-sub">Ask questions. Get intelligence.<br>Built with real ML — no wrappers.</p>
+      <div class="cta-row">
+        <a href="/login" class="btn-primary">
+          Try Live Demo
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7h9M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <span class="btn-ghost" title="Coming soon — upload your own dataset">
+          Upload Your Data
+          <span class="soon-badge">Soon</span>
+        </span>
+      </div>
+      <div class="tech-pills">
+        <span class="pill">Prophet</span>
+        <span class="pill">Random Forest</span>
+        <span class="pill">LangGraph</span>
+        <span class="pill">KMeans</span>
+        <span class="pill">Flask</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Agents ── -->
+  <section>
+    <p class="section-label reveal">Meet the Team</p>
+    <h2 class="section-title reveal">Each agent is a specialist.</h2>
+
+    <div class="agent-grid">
+
+      <div class="agent-card reveal reveal-delay-1">
+        <img class="agent-avatar" src="/static/avatars/alex.png" alt="Alex">
+        <div class="agent-info">
+          <div class="agent-tag">Sales</div>
+          <div class="agent-name">Alex</div>
+          <div class="agent-role">Sales trends, anomalies & revenue risk</div>
+        </div>
+      </div>
+
+      <div class="agent-card reveal reveal-delay-2">
+        <img class="agent-avatar" src="/static/avatars/dana.png" alt="Dana">
+        <div class="agent-info">
+          <div class="agent-tag">Products</div>
+          <div class="agent-name">Dana</div>
+          <div class="agent-role">Product demand & lifecycle intelligence</div>
+        </div>
+      </div>
+
+      <div class="agent-card reveal reveal-delay-3">
+        <img class="agent-avatar" src="/static/avatars/maya.png" alt="Maya">
+        <div class="agent-info">
+          <div class="agent-tag">Customers</div>
+          <div class="agent-name">Maya</div>
+          <div class="agent-role">Customer retention & spend segmentation</div>
+        </div>
+      </div>
+
+      <div class="agent-card reveal reveal-delay-4">
+        <img class="agent-avatar" src="/static/avatars/rey.png" alt="Rey">
+        <div class="agent-info">
+          <div class="agent-tag">Predictions</div>
+          <div class="agent-name">Rey</div>
+          <div class="agent-role">ML forecasting, churn scoring & cohort analysis</div>
+        </div>
+      </div>
+
+      <div class="agent-card reveal reveal-delay-5">
+        <img class="agent-avatar" src="/static/avatars/zyon.png" alt="Zyon">
+        <div class="agent-info">
+          <div class="agent-tag">Strategy</div>
+          <div class="agent-name">Zyon</div>
+          <div class="agent-role">Strategic consulting — from crisis triage to growth playbooks</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Tech Stack ── -->
+  <div class="stack-section reveal">
+    <p class="section-label" style="margin-bottom:28px;">Under the Hood</p>
+    <div class="stack-pills">
+      <span class="stack-pill">Prophet</span>
+      <span class="stack-pill">scikit-learn</span>
+      <span class="stack-pill">SHAP</span>
+      <span class="stack-pill">Random Forest</span>
+      <span class="stack-pill">KMeans</span>
+      <span class="stack-pill">FP-Growth</span>
+      <span class="stack-pill">LangGraph</span>
+      <span class="stack-pill">Flask</span>
+      <span class="stack-pill">Plotly</span>
+      <span class="stack-pill">Seaborn</span>
+      <span class="stack-pill">Pandas</span>
+    </div>
+  </div>
+
+  <!-- ── Bottom CTA ── -->
+  <div class="bottom-cta">
+    <h2 class="reveal">See it in action.</h2>
+    <p class="reveal">Load the live demo dataset and ask the agents anything.</p>
+    <div class="bottom-btns">
+      <a href="/login" class="btn-primary reveal">
+        Open Demo
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7h9M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <span class="btn-ghost reveal" title="Coming soon — upload your own dataset">
+        Upload Your Own
+        <span class="soon-badge">Soon</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <footer>© 2025 Taeir Cohen</footer>
+
+  <script>
+    // Nav scroll effect
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 20);
+    });
+
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>
