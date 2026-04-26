@@ -1,26 +1,67 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Data Department</title>
+  <!-- Load saved theme before paint to avoid flash -->
+  <script>
+    (function () {
+      const t = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --bg:          #000;
-      --accent:      #78a0ff;
-      --accent-dim:  rgba(120,160,255,0.15);
-      --accent-glow: rgba(120,160,255,0.07);
-      --text:        rgba(240,240,250,0.88);
-      --muted:       rgba(240,240,250,0.40);
-      --dimmer:      rgba(240,240,250,0.18);
-      --card:        rgba(240,240,250,0.04);
-      --card-border: rgba(240,240,250,0.09);
-      --radius:      16px;
+    /* ── Theme tokens ── */
+    :root,
+    [data-theme="light"] {
+      --bg:           #f7f8fc;
+      --bg-card:      #ffffff;
+      --accent:       #5b7fff;
+      --accent-rgb:   91, 127, 255;
+      --text:         rgba(10,12,30,0.88);
+      --muted:        rgba(10,12,30,0.45);
+      --dimmer:       rgba(10,12,30,0.28);
+      --card:         #ffffff;
+      --card-border:  rgba(10,12,30,0.10);
+      --card-shadow:  0 2px 16px rgba(0,0,0,0.07);
+      --nav-bg:       rgba(247,248,252,0.88);
+      --nav-border:   rgba(10,12,30,0.10);
+      --globe-main:   0x3d5fe0;
+      --globe-ring:   0x5070e8;
+      --dot-grid:     rgba(60,80,200,0.09);
+      --stack-hover-bg:    rgba(91,127,255,0.09);
+      --stack-hover-text:  #3d5fe0;
+      --stack-hover-border:rgba(91,127,255,0.28);
+      --radius: 16px;
+    }
+
+    [data-theme="dark"] {
+      --bg:           #000000;
+      --bg-card:      rgba(240,240,250,0.04);
+      --accent:       #78a0ff;
+      --accent-rgb:   120, 160, 255;
+      --text:         rgba(240,240,250,0.88);
+      --muted:        rgba(240,240,250,0.40);
+      --dimmer:       rgba(240,240,250,0.20);
+      --card:         rgba(240,240,250,0.04);
+      --card-border:  rgba(240,240,250,0.09);
+      --card-shadow:  none;
+      --nav-bg:       rgba(0,0,0,0.72);
+      --nav-border:   rgba(240,240,250,0.09);
+      --globe-main:   0x78a0ff;
+      --globe-ring:   0xa0c0ff;
+      --dot-grid:     rgba(120,160,255,0.10);
+      --stack-hover-bg:    rgba(120,160,255,0.10);
+      --stack-hover-text:  #78a0ff;
+      --stack-hover-border:rgba(120,160,255,0.25);
+      --radius: 16px;
     }
 
     html { scroll-behavior: smooth; }
@@ -31,9 +72,38 @@
       color: var(--text);
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
+      transition: background 0.3s, color 0.3s;
     }
 
-    /* ── Nav ───────────────────────────────────────────────────────────── */
+    /* ── Theme toggle button ── */
+    #theme-toggle {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 200;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      box-shadow: var(--card-shadow);
+    }
+    #theme-toggle:hover {
+      background: rgba(var(--accent-rgb), 0.12);
+      border-color: rgba(var(--accent-rgb), 0.35);
+      transform: translateY(-50%) scale(1.1);
+    }
+    #theme-toggle svg { pointer-events: none; }
+
+    /* ── Nav ── */
     nav {
       position: fixed;
       top: 0; left: 0; right: 0;
@@ -46,10 +116,10 @@
       transition: background 0.3s, border-color 0.3s;
     }
     nav.scrolled {
-      background: rgba(0,0,0,0.7);
+      background: var(--nav-bg);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--card-border);
+      border-bottom: 1px solid var(--nav-border);
     }
     .nav-logo {
       display: flex;
@@ -66,18 +136,17 @@
       align-items: center;
       gap: 6px;
       background: var(--accent);
-      color: #000;
+      color: #fff;
       font-size: 13px;
       font-weight: 700;
       padding: 9px 20px;
       border-radius: 8px;
       text-decoration: none;
-      letter-spacing: 0.1px;
       transition: opacity 0.15s;
     }
     .nav-cta:hover { opacity: 0.82; }
 
-    /* ── Hero ──────────────────────────────────────────────────────────── */
+    /* ── Hero ── */
     .hero {
       min-height: 100vh;
       display: flex;
@@ -89,31 +158,31 @@
       position: relative;
       overflow: hidden;
     }
-
-    /* dot-grid background */
     .hero::before {
       content: '';
       position: absolute;
       inset: 0;
-      background-image: radial-gradient(rgba(120,160,255,0.12) 1px, transparent 1px);
+      background-image: radial-gradient(var(--dot-grid) 1px, transparent 1px);
       background-size: 32px 32px;
-      mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 0%, transparent 100%);
-      -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 0%, transparent 100%);
+      mask-image: radial-gradient(ellipse 65% 55% at 50% 50%, black 0%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 65% 55% at 50% 50%, black 0%, transparent 100%);
       pointer-events: none;
+      z-index: 0;
     }
 
-    /* blue radial glow */
-    .hero::after {
-      content: '';
+    #globe-canvas {
       position: absolute;
-      top: 20%;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
-      width: 600px;
-      height: 400px;
-      background: radial-gradient(ellipse, rgba(120,160,255,0.13) 0%, transparent 70%);
+      transform: translate(-50%, -50%);
+      width: 760px;
+      height: 760px;
       pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      transition: opacity 1.2s ease;
     }
+    #globe-canvas.loaded { opacity: 1; }
 
     .hero-content { position: relative; z-index: 1; max-width: 720px; }
 
@@ -126,8 +195,8 @@
       letter-spacing: 2px;
       text-transform: uppercase;
       color: var(--accent);
-      background: rgba(120,160,255,0.10);
-      border: 1px solid rgba(120,160,255,0.22);
+      background: rgba(var(--accent-rgb), 0.10);
+      border: 1px solid rgba(var(--accent-rgb), 0.25);
       border-radius: 20px;
       padding: 5px 14px;
       margin-bottom: 32px;
@@ -140,7 +209,7 @@
     }
     @keyframes pulse {
       0%,100% { opacity: 1; transform: scale(1); }
-      50%      { opacity: 0.5; transform: scale(0.7); }
+      50%      { opacity: 0.4; transform: scale(0.65); }
     }
 
     .hero h1 {
@@ -148,7 +217,7 @@
       font-weight: 900;
       line-height: 1.08;
       letter-spacing: -2.5px;
-      color: rgba(240,240,250,0.95);
+      color: var(--text);
       margin-bottom: 22px;
     }
     .hero h1 span { color: var(--accent); }
@@ -158,7 +227,7 @@
       color: var(--muted);
       line-height: 1.6;
       margin-bottom: 44px;
-      max-width: 520px;
+      max-width: 500px;
       margin-left: auto;
       margin-right: auto;
     }
@@ -171,13 +240,12 @@
       flex-wrap: wrap;
       margin-bottom: 44px;
     }
-
     .btn-primary {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       background: var(--accent);
-      color: #000;
+      color: #fff;
       font-size: 15px;
       font-weight: 700;
       padding: 14px 30px;
@@ -199,17 +267,17 @@
       border-radius: 10px;
       border: 1px solid var(--card-border);
       cursor: not-allowed;
-      position: relative;
       text-decoration: none;
+      user-select: none;
     }
-    .btn-ghost .soon-badge {
+    .soon-badge {
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 1px;
       text-transform: uppercase;
-      background: rgba(120,160,255,0.15);
+      background: rgba(var(--accent-rgb), 0.13);
       color: var(--accent);
-      border: 1px solid rgba(120,160,255,0.25);
+      border: 1px solid rgba(var(--accent-rgb), 0.28);
       border-radius: 6px;
       padding: 2px 7px;
     }
@@ -224,14 +292,13 @@
       font-size: 12px;
       font-weight: 500;
       color: var(--muted);
-      background: rgba(240,240,250,0.04);
+      background: rgba(var(--accent-rgb), 0.05);
       border: 1px solid var(--card-border);
       border-radius: 20px;
       padding: 5px 13px;
-      letter-spacing: 0.2px;
     }
 
-    /* ── Sections ──────────────────────────────────────────────────────── */
+    /* ── Sections ── */
     section {
       padding: 100px 24px;
       max-width: 1080px;
@@ -250,43 +317,41 @@
       font-size: clamp(28px, 4vw, 42px);
       font-weight: 800;
       letter-spacing: -1.2px;
-      color: rgba(240,240,250,0.92);
+      color: var(--text);
       text-align: center;
       margin-bottom: 60px;
       line-height: 1.15;
     }
 
-    /* ── Agent Grid ────────────────────────────────────────────────────── */
+    /* ── Agent Grid ── */
     .agent-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 16px;
     }
-    /* 5th card centered on its own row */
     .agent-grid .agent-card:nth-child(5) {
       grid-column: 1 / -1;
       max-width: 420px;
       margin: 0 auto;
       width: 100%;
     }
-
     .agent-card {
       background: var(--card);
       border: 1px solid var(--card-border);
       border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
       padding: 28px 28px 24px;
       display: flex;
       align-items: flex-start;
       gap: 18px;
-      transition: background 0.2s, border-color 0.2s, transform 0.2s;
+      transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
       cursor: default;
     }
     .agent-card:hover {
-      background: rgba(240,240,250,0.065);
-      border-color: rgba(120,160,255,0.25);
+      border-color: rgba(var(--accent-rgb), 0.30);
       transform: translateY(-2px);
+      box-shadow: 0 6px 28px rgba(var(--accent-rgb), 0.10);
     }
-
     .agent-avatar {
       width: 52px;
       height: 52px;
@@ -299,7 +364,7 @@
     .agent-name {
       font-size: 15px;
       font-weight: 700;
-      color: rgba(240,240,250,0.92);
+      color: var(--text);
       margin-bottom: 4px;
       letter-spacing: -0.2px;
     }
@@ -315,14 +380,14 @@
       letter-spacing: 1.2px;
       text-transform: uppercase;
       color: var(--accent);
-      background: rgba(120,160,255,0.10);
-      border: 1px solid rgba(120,160,255,0.20);
+      background: rgba(var(--accent-rgb), 0.10);
+      border: 1px solid rgba(var(--accent-rgb), 0.22);
       border-radius: 4px;
       padding: 2px 8px;
       margin-bottom: 8px;
     }
 
-    /* ── Tech Stack ────────────────────────────────────────────────────── */
+    /* ── Tech Stack ── */
     .stack-section {
       text-align: center;
       border-top: 1px solid var(--card-border);
@@ -340,20 +405,21 @@
     .stack-pill {
       font-size: 13px;
       font-weight: 500;
-      color: rgba(240,240,250,0.55);
-      background: rgba(240,240,250,0.04);
-      border: 1px solid rgba(240,240,250,0.08);
+      color: var(--muted);
+      background: rgba(10,12,30,0.04);
+      border: 1px solid var(--card-border);
       border-radius: 8px;
       padding: 8px 16px;
       transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
+    [data-theme="dark"] .stack-pill { background: rgba(240,240,250,0.04); }
     .stack-pill:hover {
-      background: rgba(120,160,255,0.10);
-      color: var(--accent);
-      border-color: rgba(120,160,255,0.25);
+      background: var(--stack-hover-bg);
+      color: var(--stack-hover-text);
+      border-color: var(--stack-hover-border);
     }
 
-    /* ── Bottom CTA ────────────────────────────────────────────────────── */
+    /* ── Bottom CTA ── */
     .bottom-cta {
       text-align: center;
       padding: 100px 24px 80px;
@@ -362,7 +428,7 @@
       font-size: clamp(32px, 5vw, 56px);
       font-weight: 900;
       letter-spacing: -1.8px;
-      color: rgba(240,240,250,0.92);
+      color: var(--text);
       margin-bottom: 16px;
       line-height: 1.1;
     }
@@ -379,53 +445,53 @@
       flex-wrap: wrap;
     }
 
-    /* ── Footer ────────────────────────────────────────────────────────── */
+    /* ── Footer ── */
     footer {
       text-align: center;
       padding: 28px 24px;
       border-top: 1px solid var(--card-border);
       font-size: 13px;
       color: var(--dimmer);
-      letter-spacing: 0.2px;
     }
 
-    /* ── Scroll reveal ─────────────────────────────────────────────────── */
+    /* ── Scroll reveal ── */
     .reveal {
       opacity: 0;
       transform: translateY(24px);
       transition: opacity 0.55s ease, transform 0.55s ease;
     }
-    .reveal.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
     .reveal-delay-1 { transition-delay: 0.08s; }
     .reveal-delay-2 { transition-delay: 0.16s; }
     .reveal-delay-3 { transition-delay: 0.24s; }
     .reveal-delay-4 { transition-delay: 0.32s; }
     .reveal-delay-5 { transition-delay: 0.40s; }
 
-    /* ── Mobile ────────────────────────────────────────────────────────── */
+    /* ── Mobile ── */
     @media (max-width: 640px) {
       nav { padding: 0 20px; }
+      #globe-canvas { width: 420px; height: 420px; }
       .agent-grid { grid-template-columns: 1fr; }
-      .agent-grid .agent-card:nth-child(5) {
-        grid-column: unset;
-        max-width: none;
-      }
+      .agent-grid .agent-card:nth-child(5) { grid-column: unset; max-width: none; }
+      #theme-toggle { right: 12px; }
     }
   </style>
 </head>
 <body>
 
+  <!-- ── Theme toggle ── -->
+  <button id="theme-toggle" aria-label="Toggle theme" title="Toggle light / dark">
+    <!-- icon swapped by JS -->
+  </button>
+
   <!-- ── Nav ── -->
   <nav id="nav">
     <a href="/" class="nav-logo">
       <svg width="28" height="28" viewBox="0 0 72 72" fill="none">
-        <circle cx="36" cy="36" r="26" stroke="rgba(120,160,255,0.35)" stroke-width="1.5"/>
-        <ellipse cx="36" cy="36" rx="26" ry="11" stroke="rgba(120,160,255,0.18)" stroke-width="1.2"/>
-        <circle cx="36" cy="10" r="5" fill="#78a0ff" style="filter:drop-shadow(0 0 8px rgba(120,160,255,0.7))"/>
-        <circle cx="36" cy="36" r="5" fill="rgba(120,160,255,0.2)" stroke="rgba(120,160,255,0.45)" stroke-width="1"/>
+        <circle cx="36" cy="36" r="26" stroke="rgba(var(--accent-rgb, 91,127,255),0.4)" stroke-width="1.5"/>
+        <ellipse cx="36" cy="36" rx="26" ry="11" stroke="rgba(var(--accent-rgb, 91,127,255),0.2)" stroke-width="1.2"/>
+        <circle cx="36" cy="10" r="5" fill="var(--accent)" style="filter:drop-shadow(0 0 8px rgba(var(--accent-rgb,91,127,255),0.7))"/>
+        <circle cx="36" cy="36" r="5" fill="rgba(var(--accent-rgb,91,127,255),0.2)" stroke="rgba(var(--accent-rgb,91,127,255),0.5)" stroke-width="1"/>
       </svg>
       AI Data Department
     </a>
@@ -434,6 +500,7 @@
 
   <!-- ── Hero ── -->
   <div class="hero">
+    <canvas id="globe-canvas"></canvas>
     <div class="hero-content">
       <div class="eyebrow">
         <span class="eyebrow-dot"></span>
@@ -465,11 +532,10 @@
   <section>
     <p class="section-label reveal">Meet the Team</p>
     <h2 class="section-title reveal">Each agent is a specialist.</h2>
-
     <div class="agent-grid">
 
       <div class="agent-card reveal reveal-delay-1">
-        <img class="agent-avatar" src="/static/avatars/alex.png" alt="Alex">
+        <img class="agent-avatar" src="{{ url_for('static', filename='avatars/alex.png') }}" alt="Alex">
         <div class="agent-info">
           <div class="agent-tag">Sales</div>
           <div class="agent-name">Alex</div>
@@ -478,7 +544,7 @@
       </div>
 
       <div class="agent-card reveal reveal-delay-2">
-        <img class="agent-avatar" src="/static/avatars/dana.png" alt="Dana">
+        <img class="agent-avatar" src="{{ url_for('static', filename='avatars/dana.png') }}" alt="Dana">
         <div class="agent-info">
           <div class="agent-tag">Products</div>
           <div class="agent-name">Dana</div>
@@ -487,7 +553,7 @@
       </div>
 
       <div class="agent-card reveal reveal-delay-3">
-        <img class="agent-avatar" src="/static/avatars/maya.png" alt="Maya">
+        <img class="agent-avatar" src="{{ url_for('static', filename='avatars/maya.png') }}" alt="Maya">
         <div class="agent-info">
           <div class="agent-tag">Customers</div>
           <div class="agent-name">Maya</div>
@@ -496,7 +562,7 @@
       </div>
 
       <div class="agent-card reveal reveal-delay-4">
-        <img class="agent-avatar" src="/static/avatars/rey.png" alt="Rey">
+        <img class="agent-avatar" src="{{ url_for('static', filename='avatars/rey.png') }}" alt="Rey">
         <div class="agent-info">
           <div class="agent-tag">Predictions</div>
           <div class="agent-name">Rey</div>
@@ -505,7 +571,7 @@
       </div>
 
       <div class="agent-card reveal reveal-delay-5">
-        <img class="agent-avatar" src="/static/avatars/zyon.png" alt="Zyon">
+        <img class="agent-avatar" src="{{ url_for('static', filename='avatars/zyon.png') }}" alt="Zyon">
         <div class="agent-info">
           <div class="agent-tag">Strategy</div>
           <div class="agent-name">Zyon</div>
@@ -543,7 +609,7 @@
         Open Demo
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7h9M7.5 3.5L11 7l-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </a>
-      <span class="btn-ghost reveal" title="Coming soon — upload your own dataset">
+      <span class="btn-ghost reveal" title="Coming soon">
         Upload Your Own
         <span class="soon-badge">Soon</span>
       </span>
@@ -554,23 +620,157 @@
   <footer>© 2025 Taeir Cohen</footer>
 
   <script>
-    // Nav scroll effect
+    /* ══ Theme engine ════════════════════════════════════════════════ */
+    const root   = document.documentElement;
+    const btn    = document.getElementById('theme-toggle');
+
+    const ICONS = {
+      light: /* moon — click to go dark */
+        `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>`,
+      dark: /* sun — click to go light */
+        `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1"  x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22"  x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1"  y1="12" x2="3"  y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22"  y1="19.78" x2="5.64"  y2="18.36"/>
+          <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22"/>
+        </svg>`,
+    };
+
+    function applyTheme(theme) {
+      root.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      btn.innerHTML = ICONS[theme];
+      btn.style.color = getComputedStyle(root).getPropertyValue('--muted').trim();
+      if (window._globeSetTheme) window._globeSetTheme(theme === 'dark');
+    }
+
+    btn.addEventListener('click', () => {
+      const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      applyTheme(next);
+    });
+
+    /* init icon on load */
+    applyTheme(root.getAttribute('data-theme') || 'light');
+
+    /* ══ Nav scroll ══════════════════════════════════════════════════ */
     const nav = document.getElementById('nav');
     window.addEventListener('scroll', () => {
       nav.classList.toggle('scrolled', window.scrollY > 20);
     });
 
-    // Scroll reveal
-    const observer = new IntersectionObserver((entries) => {
+    /* ══ Scroll reveal ═══════════════════════════════════════════════ */
+    const revealObs = new IntersectionObserver((entries) => {
       entries.forEach(e => {
         if (e.isIntersecting) {
           e.target.classList.add('visible');
-          observer.unobserve(e.target);
+          revealObs.unobserve(e.target);
         }
       });
     }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
 
-    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    /* ══ Three.js Globe ══════════════════════════════════════════════ */
+    (function () {
+      if (typeof THREE === 'undefined') return;
+
+      const canvas = document.getElementById('globe-canvas');
+      const W = canvas.offsetWidth  || 760;
+      const H = canvas.offsetHeight || 760;
+
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(W, H);
+      renderer.setClearColor(0x000000, 0);
+
+      const scene  = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 100);
+      camera.position.z = 2.6;
+
+      /* Fibonacci sphere — evenly distributed points */
+      function fibSphere(n, radius) {
+        const pos    = new Float32Array(n * 3);
+        const golden = Math.PI * (3 - Math.sqrt(5));
+        for (let i = 0; i < n; i++) {
+          const y     = 1 - (i / (n - 1)) * 2;
+          const r     = Math.sqrt(1 - y * y);
+          const theta = golden * i;
+          pos[i*3]   = Math.cos(theta) * r * radius;
+          pos[i*3+1] = y * radius;
+          pos[i*3+2] = Math.sin(theta) * r * radius;
+        }
+        return pos;
+      }
+
+      const outerGeo = new THREE.BufferGeometry();
+      outerGeo.setAttribute('position', new THREE.BufferAttribute(fibSphere(3600, 1.0), 3));
+      const outerMat = new THREE.PointsMaterial({
+        color: 0x3d5fe0, size: 0.012, sizeAttenuation: true, transparent: true, opacity: 0.55,
+      });
+
+      const innerGeo = new THREE.BufferGeometry();
+      innerGeo.setAttribute('position', new THREE.BufferAttribute(fibSphere(1400, 0.72), 3));
+      const innerMat = new THREE.PointsMaterial({
+        color: 0x3d5fe0, size: 0.006, sizeAttenuation: true, transparent: true, opacity: 0.20,
+      });
+
+      /* equatorial ring */
+      const ringCount = 260;
+      const ringPos   = new Float32Array(ringCount * 3);
+      for (let i = 0; i < ringCount; i++) {
+        const a = (i / ringCount) * Math.PI * 2;
+        ringPos[i*3]   = Math.cos(a) * 1.02;
+        ringPos[i*3+1] = (Math.random() - 0.5) * 0.04;
+        ringPos[i*3+2] = Math.sin(a) * 1.02;
+      }
+      const ringGeo = new THREE.BufferGeometry();
+      ringGeo.setAttribute('position', new THREE.BufferAttribute(ringPos, 3));
+      const ringMat = new THREE.PointsMaterial({
+        color: 0x5070e8, size: 0.018, sizeAttenuation: true, transparent: true, opacity: 0.45,
+      });
+
+      const globe = new THREE.Group();
+      globe.add(new THREE.Points(outerGeo, outerMat));
+      globe.add(new THREE.Points(innerGeo, innerMat));
+      globe.add(new THREE.Points(ringGeo,  ringMat));
+      globe.rotation.x = 0.28;
+      scene.add(globe);
+
+      canvas.classList.add('loaded');
+
+      /* expose theme setter to global scope */
+      window._globeSetTheme = function (isDark) {
+        const main = isDark ? 0x78a0ff : 0x3d5fe0;
+        const ring = isDark ? 0xa0c0ff : 0x5070e8;
+        outerMat.color.setHex(main);
+        innerMat.color.setHex(main);
+        ringMat.color.setHex(ring);
+      };
+
+      /* sync with current theme on init */
+      window._globeSetTheme(root.getAttribute('data-theme') === 'dark');
+
+      function animate() {
+        requestAnimationFrame(animate);
+        globe.rotation.y += 0.0018;
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      window.addEventListener('resize', () => {
+        const nW = canvas.offsetWidth;
+        const nH = canvas.offsetHeight;
+        camera.aspect = nW / nH;
+        camera.updateProjectionMatrix();
+        renderer.setSize(nW, nH);
+      });
+    })();
   </script>
 
 </body>
