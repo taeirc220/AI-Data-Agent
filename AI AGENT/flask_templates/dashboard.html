@@ -279,9 +279,16 @@ window._dashboardSetTheme = function() {
   if (_chartData) renderCharts(_chartData);
 };
 
+function safeFetch(url, label) {
+  return fetch(url).then(r => {
+    if (r.ok) return r.json().catch(() => ({ error: `${label}: response was not valid JSON (HTTP ${r.status})` }));
+    return r.text().then(t => ({ error: `${label}: HTTP ${r.status} — ${t.slice(0, 300)}` }));
+  }).catch(e => ({ error: `${label}: network error — ${e.message}` }));
+}
+
 Promise.all([
-  fetch('/api/kpis').then(r => r.json()).catch(() => ({ error: 'KPI fetch failed' })),
-  fetch('/api/charts').then(r => r.json()).catch(() => ({ error: 'Charts fetch failed' })),
+  safeFetch('/api/kpis', 'KPI fetch'),
+  safeFetch('/api/charts', 'Charts fetch'),
 ]).then(([kpiData, chartData]) => {
   _kpiData   = kpiData;
   _chartData = chartData;

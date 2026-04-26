@@ -37,13 +37,15 @@ def api_health():
 @dashboard_bp.route('/api/kpis')
 @login_required
 def api_kpis():
-    from flask_agents import get_agents
-    df, manager, sales = get_agents()
-
-    if df is None:
-        return jsonify({'error': 'Data not loaded — check server logs for details.'}), 503
-
     try:
+        from flask_agents import get_agents
+        df, manager, sales = get_agents()
+
+        if df is None:
+            return jsonify({'error': 'Data not loaded — check server logs for details.'}), 503
+        if sales is None:
+            return jsonify({'error': 'SalesAnalyst not initialised — check server logs.'}), 503
+
         mom_data = sales.get_mom_growth_rate()
         mom = mom_data.get('latest', 0.0) if isinstance(mom_data, dict) else 0.0
         return jsonify({
@@ -64,13 +66,15 @@ def api_kpis():
 @dashboard_bp.route('/api/charts')
 @login_required
 def api_charts():
-    from flask_agents import get_agents
-    df, manager, sales = get_agents()
-
-    if df is None:
-        return jsonify({'error': 'Data not loaded — check server logs for details.'}), 503
-
     try:
+        from flask_agents import get_agents
+        df, manager, sales = get_agents()
+
+        if df is None:
+            return jsonify({'error': 'Data not loaded — check server logs for details.'}), 503
+        if sales is None:
+            return jsonify({'error': 'SalesAnalyst not initialised — check server logs.'}), 503
+
         return jsonify({
             'monthly_revenue': sales.get_monthly_revenue(),
             'top_countries':   sales.get_top_countries_by_revenue(limit=5),
