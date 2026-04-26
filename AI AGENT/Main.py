@@ -9,7 +9,7 @@ def start_app():
     print("╚══════════════════════════════════════════╝")
 
     # Load the data
-    file_name = "mixed_online_retail.csv"
+    file_name = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "online_retail_II_sampled.parquet")
     print(f"\nLoading your data, just a moment...")
 
     d_agent = DataAgent(file_name)

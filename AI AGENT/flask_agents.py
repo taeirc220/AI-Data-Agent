@@ -13,6 +13,7 @@ import traceback
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _BASE)
+
 sys.path.insert(0, os.path.join(_BASE, 'agents'))
 
 _df      = None
@@ -38,7 +39,7 @@ def get_agents():
             from Data_Agent import DataAgent
             from Sales_Analyst import SalesAnalyst
 
-            csv_path = os.path.join(_BASE, "data", "mixed_online_retail.csv")
+            csv_path = os.path.join(_BASE, "data", "online_retail_II_sampled.parquet")
             d_agent = DataAgent(csv_path)
             _df = d_agent.get_data()
 

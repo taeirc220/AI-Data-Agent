@@ -20,13 +20,17 @@ class DataAgent:
         self.file_path = file_path
 
     def get_data(self):
-        """Loads the CSV, cleans it, and returns a ready-to-use DataFrame. Returns None on failure."""
+        """Loads the data file, cleans it, and returns a ready-to-use DataFrame. Returns None on failure."""
         if not os.path.exists(self.file_path):
             _safe_print(f"[Data Agent] ERROR: File not found at {self.file_path}")
             return None
 
         try:
-            df = pd.read_csv(self.file_path, encoding='ISO-8859-1')
+            ext = os.path.splitext(self.file_path)[1].lower()
+            if ext == '.parquet':
+                df = pd.read_parquet(self.file_path)
+            else:
+                df = pd.read_csv(self.file_path, encoding='ISO-8859-1')
 
             rows_before = len(df)
 
@@ -54,5 +58,5 @@ class DataAgent:
 
             return df
         except Exception as e:
-            _safe_print(f"[Data Agent] ERROR loading CSV: {e}")
+            _safe_print(f"[Data Agent] ERROR loading file: {e}")
             return None

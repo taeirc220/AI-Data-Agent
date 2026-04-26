@@ -52,6 +52,14 @@ def login():
     return render_template('login.html')
 
 
+@auth_bp.route('/demo')
+def demo():
+    session['username'] = 'Demo'
+    session['role'] = 'viewer'
+    session.permanent = True
+    return redirect(url_for('dashboard.main'))
+
+
 @auth_bp.route('/logout')
 def logout():
     session.clear()

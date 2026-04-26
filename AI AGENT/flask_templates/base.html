@@ -1,9 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}AI Data Department{% endblock %}</title>
+  <!-- Load saved theme before paint to avoid flash -->
+  <script>
+    (function(){
+      const t = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -11,7 +18,8 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
+    :root,
+    [data-theme="dark"] {
       --bg:           #000000;
       --sidebar-bg:   #0a0a0a;
       --card:         rgba(240,240,250,0.05);
@@ -30,12 +38,32 @@
       --sidebar-w:    220px;
     }
 
+    [data-theme="light"] {
+      --bg:           #f0f2f8;
+      --sidebar-bg:   #ffffff;
+      --card:         #ffffff;
+      --card-border:  rgba(10,12,30,0.08);
+      --accent:       #5b7fff;
+      --accent-dim:   rgba(91,127,255,0.18);
+      --accent-glow:  rgba(91,127,255,0.07);
+      --text:         rgba(10,12,30,0.88);
+      --text-muted:   rgba(10,12,30,0.44);
+      --text-dim:     rgba(10,12,30,0.22);
+      --border:       rgba(10,12,30,0.09);
+      --border-dim:   rgba(10,12,30,0.05);
+      --green:        #16a34a;
+      --red:          #dc2626;
+      --orange:       #ea580c;
+      --sidebar-w:    220px;
+    }
+
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       display: flex;
+      transition: background 0.3s, color 0.3s;
     }
 
     /* ── Sidebar ── */
@@ -73,7 +101,7 @@
     .brand-name {
       font-size: 13px;
       font-weight: 700;
-      color: rgba(240,240,250,0.85);
+      color: var(--text);
       line-height: 1.2;
     }
     .brand-sub {
@@ -147,7 +175,7 @@
       flex-shrink: 0;
     }
     .agent-ava img { width: 100%; height: 100%; object-fit: cover; object-position: center 12%; }
-    .agent-name { font-weight: 600; font-size: 11.5px; color: rgba(240,240,250,0.65); }
+    .agent-name { font-weight: 600; font-size: 11.5px; color: var(--text-muted); }
     .agent-role { font-size: 9.5px; color: var(--text-dim); }
 
     .sidebar-footer {
@@ -175,7 +203,7 @@
       color: var(--accent);
       flex-shrink: 0;
     }
-    .user-name { font-size: 12px; font-weight: 600; color: rgba(240,240,250,0.7); }
+    .user-name { font-size: 12px; font-weight: 600; color: var(--text-muted); }
     .btn-logout {
       margin-left: auto;
       background: transparent;
@@ -204,7 +232,7 @@
     .page-header h1 {
       font-size: 20px;
       font-weight: 700;
-      color: rgba(240,240,250,0.9);
+      color: var(--text);
       margin-bottom: 4px;
     }
     .page-header p { font-size: 12px; color: var(--text-muted); }
@@ -241,7 +269,7 @@
     .kpi-value {
       font-size: 24px;
       font-weight: 700;
-      color: rgba(240,240,250,0.9);
+      color: var(--text);
       margin-bottom: 4px;
       line-height: 1;
     }
@@ -256,6 +284,13 @@
     .badge-up   { background: rgba(74,222,128,0.12); color: var(--green); }
     .badge-down { background: rgba(248,113,113,0.12); color: var(--red); }
     .badge-flat { background: rgba(240,240,250,0.06); color: var(--text-muted); }
+    [data-theme="light"] .badge-up   { background: rgba(22,163,74,0.10); }
+    [data-theme="light"] .badge-down { background: rgba(220,38,38,0.10); }
+    [data-theme="light"] .badge-flat { background: rgba(10,12,30,0.06); }
+    [data-theme="light"] .alert-error {
+      background: rgba(220,38,38,0.06);
+      border-color: rgba(220,38,38,0.18);
+    }
 
     /* ── Chart panels ── */
     .chart-panel {
@@ -300,10 +335,40 @@
     }
 
     hr { border: none; border-top: 1px solid var(--border-dim); }
+
+    /* ── Theme toggle ── */
+    #app-theme-toggle {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 200;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--card);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    }
+    #app-theme-toggle:hover {
+      background: var(--accent-glow);
+      border-color: var(--accent-dim);
+      transform: translateY(-50%) scale(1.1);
+    }
+    #app-theme-toggle svg { pointer-events: none; }
+    @media (max-width: 640px) { #app-theme-toggle { right: 10px; } }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
+
+<button id="app-theme-toggle" aria-label="Toggle theme" title="Toggle light / dark"></button>
 
 <aside class="sidebar">
   <div class="sidebar-logo">
@@ -377,5 +442,41 @@
 </div>
 
 {% block scripts %}{% endblock %}
+
+<script>
+  /* ── App theme engine ── */
+  (function () {
+    const root = document.documentElement;
+    const btn  = document.getElementById('app-theme-toggle');
+
+    const ICONS = {
+      dark:  /* moon */
+        `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>`,
+      light: /* sun */
+        `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1"  x2="12" y2="3"/>  <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>  <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>`,
+    };
+
+    function applyTheme(theme) {
+      root.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      btn.innerHTML = ICONS[theme];
+      if (window._dashboardSetTheme) window._dashboardSetTheme(theme);
+    }
+
+    btn.addEventListener('click', function () {
+      applyTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+
+    applyTheme(root.getAttribute('data-theme') || 'dark');
+  })();
+</script>
 </body>
 </html>
