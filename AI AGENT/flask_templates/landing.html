@@ -475,9 +475,27 @@
       .agent-grid .agent-card:nth-child(5) { grid-column: unset; max-width: none; }
       #theme-toggle { right: 12px; }
     }
+
+    /* ── Page-exit overlay ── */
+    #exit-overlay {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 9999;
+      transition: opacity 0.38s ease;
+    }
+    #exit-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
   </style>
 </head>
 <body>
+
+  <!-- ── Page-exit overlay ── -->
+  <div id="exit-overlay"></div>
 
   <!-- ── Theme toggle ── -->
   <button id="theme-toggle" aria-label="Toggle theme" title="Toggle light / dark">
@@ -771,6 +789,21 @@
         renderer.setSize(nW, nH);
       });
     })();
+
+    /* ══ Page-exit transition ════════════════════════════════════════ */
+    const exitOverlay = document.getElementById('exit-overlay');
+
+    function navigateWithFade(href) {
+      exitOverlay.classList.add('active');
+      setTimeout(() => { window.location.href = href; }, 400);
+    }
+
+    document.querySelectorAll('a.btn-primary, a.nav-cta').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        navigateWithFade(this.href);
+      });
+    });
   </script>
 
 </body>

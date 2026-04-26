@@ -336,6 +336,18 @@
 
     hr { border: none; border-top: 1px solid var(--border-dim); }
 
+    /* ── Page-enter fade ── */
+    #page-enter {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      opacity: 1;
+      z-index: 9999;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    #page-enter.done { opacity: 0; }
+
     /* ── Theme toggle ── */
     #app-theme-toggle {
       position: fixed;
@@ -367,6 +379,8 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body>
+
+<div id="page-enter"></div>
 
 <button id="app-theme-toggle" aria-label="Toggle theme" title="Toggle light / dark"></button>
 
@@ -476,6 +490,17 @@
     });
 
     applyTheme(root.getAttribute('data-theme') || 'dark');
+  })();
+
+  /* ── Page-enter fade-in ── */
+  (function () {
+    const el = document.getElementById('page-enter');
+    if (!el) return;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        el.classList.add('done');
+      });
+    });
   })();
 </script>
 </body>
