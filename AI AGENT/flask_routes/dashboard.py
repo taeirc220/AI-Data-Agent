@@ -23,11 +23,10 @@ def main():
 @dashboard_bp.route('/api/health')
 def api_health():
     """Diagnostic endpoint — shows what loaded successfully on startup."""
-    from flask_agents import get_agents, get_manager_error
-    df, manager, sales = get_agents()
+    from flask_agents import get_data_agents, get_manager_error
+    df, sales = get_data_agents()
     return jsonify({
         'data_loaded':    df is not None,
-        'manager_loaded': manager is not None,
         'sales_loaded':   sales is not None,
         'records':        len(df) if df is not None else 0,
         'manager_error':  get_manager_error(),
@@ -38,8 +37,8 @@ def api_health():
 @login_required
 def api_kpis():
     try:
-        from flask_agents import get_agents
-        df, manager, sales = get_agents()
+        from flask_agents import get_data_agents
+        df, sales = get_data_agents()
 
         if df is None:
             return jsonify({'error': 'Data not loaded — check server logs for details.'}), 503
@@ -67,8 +66,8 @@ def api_kpis():
 @login_required
 def api_charts():
     try:
-        from flask_agents import get_agents
-        df, manager, sales = get_agents()
+        from flask_agents import get_data_agents
+        df, sales = get_data_agents()
 
         if df is None:
             return jsonify({'error': 'Data not loaded — check server logs for details.'}), 503

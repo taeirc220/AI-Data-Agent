@@ -23,8 +23,8 @@ def api_chat():
     if len(message) > 2000:
         return jsonify({'error': 'Message too long. Please keep questions under 2000 characters.'}), 400
 
-    from flask_agents import get_agents
-    df, manager, sales = get_agents()
+    from flask_agents import get_manager
+    manager = get_manager()
 
     if manager is None:
         return jsonify({'error': 'Agent not available. Check that the data file is loaded.'}), 500
