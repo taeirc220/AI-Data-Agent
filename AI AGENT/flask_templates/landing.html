@@ -266,9 +266,15 @@
       padding: 14px 30px;
       border-radius: 10px;
       border: 1px solid var(--card-border);
-      cursor: not-allowed;
+      cursor: pointer;
       text-decoration: none;
       user-select: none;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .btn-ghost:hover {
+      border-color: rgba(var(--accent-rgb), 0.4);
+      color: var(--text);
+      background: rgba(var(--accent-rgb), 0.06);
     }
     .soon-badge {
       font-size: 10px;
@@ -1022,6 +1028,134 @@
         navigateWithFade(this.href);
       });
     });
+
+    /* ══ Upload Modal ════════════════════════════════════════════════ */
+
+    function openUploadModal() {
+      const modal = document.getElementById('upload-modal');
+      modal.style.display = 'flex';
+      document.getElementById('upload-status').style.display = 'none';
+      document.getElementById('upload-error').style.display  = 'none';
+      document.getElementById('upload-file-input').value     = '';
+      resetDropzone();
+    }
+
+    function closeUploadModal() {
+      document.getElementById('upload-modal').style.display = 'none';
+    }
+
+    document.getElementById('upload-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeUploadModal();
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeUploadModal();
+    });
+
+    function resetDropzone() {
+      const dz = document.getElementById('upload-dropzone');
+      dz.style.borderColor = 'var(--card-border)';
+      dz.style.background  = 'transparent';
+    }
+
+    function uploadDragOver(e) {
+      e.preventDefault();
+      const dz = document.getElementById('upload-dropzone');
+      dz.style.borderColor = 'rgba(var(--accent-rgb), 0.6)';
+      dz.style.background  = 'rgba(var(--accent-rgb), 0.06)';
+    }
+
+    function uploadDragLeave() { resetDropzone(); }
+
+    function uploadDrop(e) {
+      e.preventDefault();
+      resetDropzone();
+      const file = e.dataTransfer.files[0];
+      if (file) uploadHandleFile(file);
+    }
+
+    function escapeHtml(str) {
+      if (typeof str !== 'string') str = String(str);
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function uploadHandleFile(file) {
+      const errorEl  = document.getElementById('upload-error');
+      const statusEl = document.getElementById('upload-status');
+
+      errorEl.style.display  = 'none';
+      statusEl.style.display = 'none';
+
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        errorEl.textContent   = 'Only .csv files are accepted. Please choose a CSV file.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      statusEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;">
+          <div style="width:16px;height:16px;border:1.5px solid var(--card-border);
+                      border-top-color:var(--accent);border-radius:50%;
+                      animation:spin 0.7s linear infinite;flex-shrink:0;"></div>
+          Reading <strong style="color:var(--text)">${escapeHtml(file.name)}</strong>&hellip;
+        </div>`;
+      statusEl.style.display = 'block';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res  = await fetch('/api/upload/csv', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          statusEl.style.display = 'none';
+          errorEl.textContent    = data.error || 'Upload failed. Please try again.';
+          errorEl.style.display  = 'block';
+          return;
+        }
+
+        const cols   = data.columns || [];
+        const sample = data.sample  || {};
+
+        const colPills = cols.map(c =>
+          `<span style="display:inline-flex;align-items:center;
+                  background:rgba(var(--accent-rgb),0.08);
+                  border:1px solid rgba(var(--accent-rgb),0.2);
+                  border-radius:5px;padding:3px 9px;
+                  font-size:11.5px;color:var(--accent);font-weight:500;">
+             ${escapeHtml(c)}
+           </span>`
+        ).join('');
+
+        statusEl.innerHTML = `
+          <div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);
+                      border-radius:8px;padding:16px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <span style="color:#4ade80;font-size:16px;">&#10003;</span>
+              <span style="font-size:13px;font-weight:600;color:#4ade80;">
+                File received &mdash; ${cols.length} columns detected
+              </span>
+            </div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;
+                        text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Columns</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">${colPills}</div>
+            <div style="font-size:11px;color:var(--muted);">
+              First row: <span style="font-family:monospace;color:var(--text);font-size:11px;">
+                ${escapeHtml(JSON.stringify(sample))}
+              </span>
+            </div>
+          </div>
+          <div style="margin-top:12px;font-size:12px;color:var(--muted);text-align:center;">
+            Full AI column-mapping coming soon &mdash; preview loaded successfully.
+          </div>`;
+
+      } catch (err) {
+        statusEl.style.display = 'none';
+        errorEl.textContent    = 'Network error. Please check your connection and try again.';
+        errorEl.style.display  = 'block';
+      }
+    }
   </script>
 
 <!-- ══ Upload Modal ═════════════════════════════════════════════════════ -->
