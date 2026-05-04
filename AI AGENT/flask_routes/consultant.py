@@ -1,7 +1,24 @@
+import json
+import threading
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
 from flask import Blueprint, render_template, session, request, jsonify
 from flask_routes.utils import login_required
 
 consultant_bp = Blueprint('consultant', __name__)
+
+_LOG_PATH = Path(__file__).parent.parent / 'data' / 'admin_log.json'
+_log_lock = threading.Lock()
+
+
+def _append_log(entry: dict):
+    with _log_lock:
+        _LOG_PATH.parent.mkdir(exist_ok=True)
+        entries = json.loads(_LOG_PATH.read_text('utf-8')) if _LOG_PATH.exists() else []
+        entries.append(entry)
+        _LOG_PATH.write_text(json.dumps(entries, indent=2), encoding='utf-8')
 
 
 @consultant_bp.route('/consultant')
@@ -18,14 +35,22 @@ def api_consultant_profile():
     email         = data.get('email', '').strip()
     business_type = data.get('business_type', '').strip()
 
-    if not name or not business_type:
-        return jsonify({'error': 'Name and business type are required.'}), 400
+    if not name or not email or not business_type:
+        return jsonify({'error': 'Name, email, and business type are required.'}), 400
 
     VALID_TYPES = {'e-commerce', 'retail', 'restaurant', 'services', 'other'}
     if business_type not in VALID_TYPES:
         return jsonify({'error': 'Invalid business type.'}), 400
 
     session['business_profile'] = {'name': name, 'email': email, 'business_type': business_type}
+    _append_log({
+        'id':            str(uuid.uuid4()),
+        'event':         'profile_submitted',
+        'timestamp':     datetime.now(timezone.utc).isoformat(),
+        'name':          name,
+        'email':         email,
+        'business_type': business_type,
+    })
     return jsonify({'ok': True})
 
 
@@ -95,10 +120,12 @@ def api_consultant_health_preview():
 @consultant_bp.route('/api/consultant/analyze', methods=['POST'])
 @login_required
 def api_consultant_analyze():
-    data      = request.get_json(silent=True) or {}
-    goal      = data.get('goal', '').strip()
-    target    = data.get('target', '').strip()
-    timeframe = data.get('timeframe', 'the next 3 months').strip()
+    data           = request.get_json(silent=True) or {}
+    goal           = data.get('goal', '').strip()
+    target         = data.get('target', '').strip()
+    timeframe      = data.get('timeframe', 'the next 3 months').strip()
+    goal_label     = data.get('goal_label', '').strip()
+    goal_questions = data.get('goal_questions', [])
 
     if not goal:
         return jsonify({'error': 'No goal provided.'}), 400
@@ -106,6 +133,7 @@ def api_consultant_analyze():
     # Inject business profile context if available
     profile       = session.get('business_profile', {})
     profile_name  = profile.get('name', '')
+    profile_email = profile.get('email', '')
     profile_type  = profile.get('business_type', '')
 
     # Build a rich natural-language prompt for Zyon
@@ -135,8 +163,22 @@ def api_consultant_analyze():
     try:
         for step in manager.handle_consultant_request(prompt):
             if step['type'] == 'result':
+                strategy_text = step['content']
+                _append_log({
+                    'id':              str(uuid.uuid4()),
+                    'event':           'strategy_generated',
+                    'timestamp':       datetime.now(timezone.utc).isoformat(),
+                    'name':            profile_name,
+                    'email':           profile_email,
+                    'business_type':   profile_type,
+                    'goal_label':      goal_label,
+                    'goal_questions':  goal_questions,
+                    'timeframe':       timeframe,
+                    'target':          target,
+                    'strategy_snippet': strategy_text[:300],
+                })
                 return jsonify({
-                    'response': step['content'],
+                    'response': strategy_text,
                     'agent':    step.get('agent_label', 'Consultant (Zyon)'),
                 })
         return jsonify({'error': 'No response generated.'}), 500

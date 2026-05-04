@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .admin-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .admin-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+  }
+  .admin-header span {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .summary-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .summary-card .val {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .summary-card .lbl {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+
+  .admin-table-wrap {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead {
+    background: var(--card-border);
+  }
+  th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 14px;
+    border-top: 1px solid var(--card-border);
+    color: var(--text);
+    vertical-align: top;
+  }
+  tr:hover td { background: rgba(120,160,255,0.04); }
+
+  .dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    margin-right: 4px;
+    flex-shrink: 0;
+  }
+  .dot-green  { background: var(--green); }
+  .dot-yellow { background: var(--orange); }
+  .dot-red    { background: var(--red); }
+
+  .kpi-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 130px;
+  }
+  .kpi-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .snippet {
+    max-width: 260px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .snippet-full  { display: none; }
+  .expand-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 4px;
+    display: block;
+  }
+  .expand-btn:hover { text-decoration: underline; }
+
+  .questions-list {
+    font-size: 11px;
+    color: var(--text-muted);
+    list-style: none;
+    padding: 0; margin: 0;
+    max-width: 200px;
+  }
+  .questions-list li { margin-bottom: 2px; }
+
+  .tag {
+    display: inline-block;
+    background: rgba(91,127,255,0.12);
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+</style>
+
+<div class="admin-header">
+  <h1>Admin Panel</h1>
+  <span>Consultant activity log</span>
+</div>
+
+<div class="summary-row">
+  <div class="summary-card">
+    <div class="val">{{ summary.total_strategies }}</div>
+    <div class="lbl">Strategy sessions</div>
+  </div>
+  <div class="summary-card">
+    <div class="val">{{ summary.unique_emails }}</div>
+    <div class="lbl">Unique users</div>
+  </div>
+  <div class="summary-card">
+    <div class="val" style="font-size:16px;padding-top:5px;">{{ summary.top_goal or '—' }}</div>
+    <div class="lbl">Most common goal</div>
+  </div>
+  <div class="summary-card">
+    <div class="val" style="font-size:16px;padding-top:5px;">{{ summary.top_biz or '—' }}</div>
+    <div class="lbl">Most common business</div>
+  </div>
+</div>
+
+<div class="admin-table-wrap">
+{% if entries %}
+<table>
+  <thead>
+    <tr>
+      <th>Time</th>
+      <th>User</th>
+      <th>Business</th>
+      <th>Goal</th>
+      <th>Timeframe</th>
+      <th>Business health</th>
+      <th>Questions answered</th>
+      <th>Strategy preview</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for e in entries %}
+  {% set hp = e.get('health_preview', {}) %}
+  <tr>
+    <td style="white-space:nowrap;font-size:11px;color:var(--text-muted);">
+      {{ e.get('timestamp', '')[:10] }}<br>
+      {{ e.get('timestamp', '')[11:16] }} UTC
+    </td>
+    <td>
+      <div style="font-weight:600;">{{ e.get('name', '—') }}</div>
+      <div style="font-size:11px;color:var(--text-muted);">{{ e.get('email', '') }}</div>
+    </td>
+    <td><span class="tag">{{ e.get('business_type', '—') }}</span></td>
+    <td style="font-weight:500;max-width:120px;">{{ e.get('goal_label', '—') }}</td>
+    <td style="font-size:12px;color:var(--text-muted);">{{ e.get('timeframe', '—') }}</td>
+    <td>
+      {% if hp %}
+      <div class="kpi-row">
+        <div class="kpi-item">
+          <span class="dot dot-{{ hp.get('mom_growth', {}).get('color', 'red') }}"></span>
+          {{ hp.get('mom_growth', {}).get('display', '—') }}
+        </div>
+        <div class="kpi-item">
+          <span class="dot dot-{{ hp.get('churn_risk', {}).get('color', 'red') }}"></span>
+          {{ hp.get('churn_risk', {}).get('display', '—') }}
+        </div>
+        <div class="kpi-item">
+          <span class="dot dot-{{ hp.get('repeat_rate', {}).get('color', 'red') }}"></span>
+          {{ hp.get('repeat_rate', {}).get('display', '—') }}
+        </div>
+      </div>
+      {% else %}
+      <span style="color:var(--text-dim);font-size:11px;">—</span>
+      {% endif %}
+    </td>
+    <td>
+      {% set qs = e.get('goal_questions', []) %}
+      {% if qs %}
+      <ul class="questions-list">
+        {% for q in qs[:3] %}
+        <li>· {{ q[:60] }}{% if q|length > 60 %}…{% endif %}</li>
+        {% endfor %}
+        {% if qs|length > 3 %}<li style="color:var(--text-dim);">+{{ qs|length - 3 }} more</li>{% endif %}
+      </ul>
+      {% else %}
+      <span style="color:var(--text-dim);font-size:11px;">No answers</span>
+      {% endif %}
+    </td>
+    <td>
+      <div class="snippet">
+        <span class="snippet-short">{{ e.get('strategy_snippet', '')[:140] }}{% if e.get('strategy_snippet', '')|length > 140 %}…{% endif %}</span>
+        <span class="snippet-full">{{ e.get('strategy_snippet', '') }}</span>
+        {% if e.get('strategy_snippet', '')|length > 140 %}
+        <button class="expand-btn" onclick="toggleSnippet(this)">Show more</button>
+        {% endif %}
+      </div>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">No strategy sessions recorded yet.</div>
+{% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleSnippet(btn) {
+  const cell = btn.closest('.snippet');
+  const short = cell.querySelector('.snippet-short');
+  const full  = cell.querySelector('.snippet-full');
+  const showing = full.style.display === 'inline';
+  full.style.display  = showing ? 'none'   : 'inline';
+  short.style.display = showing ? 'inline' : 'none';
+  btn.textContent     = showing ? 'Show more' : 'Show less';
+}
+</script>
+{% endblock %}

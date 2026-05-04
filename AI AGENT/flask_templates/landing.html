@@ -1413,7 +1413,9 @@
     const MAX_POLLS   = 80;     // 80 × 3s = 4 min max wait
 
     /* ── Modal open/close ─────────────────────────────────────────── */
+    const _isLoggedIn = {{ 'true' if session.get('username') else 'false' }};
     window.openUploadModal = function () {
+      if (!_isLoggedIn) { window.location.href = '/login'; return; }
       document.getElementById('upload-overlay').classList.add('open');
       goToStep('step-drop');
     };
@@ -1638,6 +1640,91 @@
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
   })();
+</script>
+
+<!-- ── Dark mode suggestion popup ─────────────────────────── -->
+<div id="dm-popup" style="
+  position:fixed;bottom:28px;left:28px;z-index:300;
+  width:280px;background:var(--card,#f7f8fd);
+  border:1px solid var(--card-border,rgba(10,12,30,0.10));
+  border-radius:14px;padding:14px 14px 0;
+  box-shadow:0 6px 28px rgba(0,0,0,0.16);
+  opacity:0;transform:translateY(20px);pointer-events:none;
+  transition:opacity 0.35s ease,transform 0.35s ease;
+  display:none;
+">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;">
+      <span style="font-size:22px;line-height:1;">🌙</span>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text,rgba(10,12,30,0.88));margin-bottom:2px;">Try Dark Mode</div>
+        <div style="font-size:11px;color:var(--muted,rgba(10,12,30,0.44));">Looks better at night</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <button id="dm-switch" style="
+        background:var(--accent,#5b7fff);color:#fff;border:none;
+        border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600;
+        cursor:pointer;white-space:nowrap;
+      ">Switch</button>
+      <button id="dm-close" style="
+        background:none;border:none;cursor:pointer;
+        color:var(--muted,rgba(10,12,30,0.44));font-size:18px;
+        line-height:1;padding:2px 4px;
+      ">×</button>
+    </div>
+  </div>
+  <div style="position:relative;height:3px;margin:12px -14px 0;overflow:hidden;border-radius:0 0 14px 14px;background:var(--card-border,rgba(10,12,30,0.08));">
+    <div id="dm-progress" style="
+      position:absolute;inset:0;
+      background:var(--accent,#5b7fff);
+      transform-origin:left;
+      animation:dmDrain 5s linear forwards;
+    "></div>
+  </div>
+</div>
+<style>
+@keyframes dmDrain { from { transform:scaleX(1); } to { transform:scaleX(0); } }
+</style>
+<script>
+(function () {
+  const root = document.documentElement;
+  const pop  = document.getElementById('dm-popup');
+  const KEY  = 'dark_popup_dismissed';
+
+  if (localStorage.getItem(KEY) === '1') return;
+  if (localStorage.getItem('theme') === 'dark') return;
+
+  function dismiss() {
+    pop.style.opacity    = '0';
+    pop.style.transform  = 'translateY(20px)';
+    pop.style.pointerEvents = 'none';
+    setTimeout(() => { pop.style.display = 'none'; }, 350);
+    localStorage.setItem(KEY, '1');
+  }
+
+  pop.style.display = 'block';
+  setTimeout(() => {
+    pop.style.opacity   = '1';
+    pop.style.transform = 'translateY(0)';
+    pop.style.pointerEvents = 'auto';
+  }, 1500);
+
+  setTimeout(dismiss, 6500); // 1.5s appear + 5s drain
+
+  document.getElementById('dm-close').addEventListener('click', dismiss);
+
+  document.getElementById('dm-switch').addEventListener('click', function () {
+    if (typeof applyTheme === 'function') {
+      applyTheme('dark');
+    } else {
+      root.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+      if (window._globeSetTheme) window._globeSetTheme(true);
+    }
+    dismiss();
+  });
+})();
 </script>
 
 </body>

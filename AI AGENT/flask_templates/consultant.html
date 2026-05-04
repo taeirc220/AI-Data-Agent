@@ -422,6 +422,138 @@
 }
 #health-preview { animation: slideDown 0.28s ease; }
 @keyframes pulse { from { opacity:0.4; } to { opacity:0.9; } }
+
+/* ── Floating help bubble ─────────────────────────────────────── */
+#help-bubble {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 180;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(91,127,255,0.38);
+  animation: bubbleUp 0.35s cubic-bezier(.22,.68,0,1.3);
+  border: none;
+}
+#help-bubble:hover { opacity: 0.9; }
+#help-bubble svg { width: 22px; height: 22px; fill: #fff; }
+.help-bubble-dot {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 9px; height: 9px;
+  background: #4ade80;
+  border-radius: 50%;
+  animation: pulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes bubbleUp {
+  from { opacity:0; transform:translateY(16px) scale(0.8); }
+  to   { opacity:1; transform:translateY(0)    scale(1);   }
+}
+#help-panel {
+  position: fixed;
+  bottom: 92px;
+  right: 28px;
+  z-index: 180;
+  width: 300px;
+  height: 380px;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  animation: panelSlide 0.25s ease;
+}
+@keyframes panelSlide {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0);    }
+}
+.help-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.help-panel-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.help-panel-close:hover { color: var(--text); }
+#help-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.help-msg {
+  max-width: 86%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.help-msg.user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 3px;
+}
+.help-msg.ai {
+  align-self: flex-start;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-bottom-left-radius: 3px;
+}
+.help-panel-input-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--card-border);
+}
+#help-input {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  resize: none;
+}
+#help-input::placeholder { color: var(--text-dim); }
+#help-send {
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+#help-send svg { width:14px; height:14px; fill:#fff; }
+#help-send:disabled { opacity:0.45; cursor:default; }
 </style>
 {% endblock %}
 
@@ -476,11 +608,7 @@
              placeholder="e.g. Sarah" autocomplete="given-name">
     </div>
     <div>
-      <label class="form-label" for="profile-email">
-        Email
-        <span style="font-weight:400;text-transform:none;letter-spacing:0;
-                     font-size:10px;color:var(--text-dim)">(optional)</span>
-      </label>
+      <label class="form-label" for="profile-email">Email</label>
       <input id="profile-email" class="form-input" type="email"
              placeholder="sarah@example.com" autocomplete="email">
     </div>
@@ -666,6 +794,26 @@
   </div>
 
 </div>
+
+<!-- ── Floating help bubble (Phase 1.5 only) ───────────────── -->
+<button id="help-bubble" title="Ask Zyon for help" onclick="toggleHelpPanel()">
+  <svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+  <span class="help-bubble-dot"></span>
+</button>
+
+<div id="help-panel">
+  <div class="help-panel-header">
+    <span>⚡ Ask Zyon</span>
+    <button class="help-panel-close" onclick="toggleHelpPanel()">×</button>
+  </div>
+  <div id="help-messages"></div>
+  <div class="help-panel-input-row">
+    <textarea id="help-input" rows="1" placeholder="Ask anything about your answers…"></textarea>
+    <button id="help-send" onclick="sendHelpMessage()">
+      <svg viewBox="0 0 20 20"><path d="M2 10L18 2l-4 8 4 8L2 10z"/></svg>
+    </button>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -799,8 +947,8 @@ document.getElementById('btn-profile-submit').addEventListener('click', async ()
 
   errEl.style.display = 'none';
 
-  if (!name || !bizType) {
-    errEl.textContent   = 'Please enter your name and select a business type.';
+  if (!name || !email || !bizType) {
+    errEl.textContent   = 'Please enter your name, email, and business type.';
     errEl.style.display = 'block';
     return;
   }
@@ -908,12 +1056,15 @@ function showGoalQuestions() {
   document.getElementById('phase-setup').style.display    = 'none';
   document.getElementById('phase-questions').style.display = 'block';
   updateStepper(2);
+  document.getElementById('help-bubble').style.display = 'flex';
 }
 
 function goBackToGoals() {
   document.getElementById('phase-questions').style.display = 'none';
   document.getElementById('phase-setup').style.display     = 'block';
   updateStepper(1);
+  document.getElementById('help-bubble').style.display = 'none';
+  document.getElementById('help-panel').style.display  = 'none';
 }
 
 function collectGoalAnswers() {
@@ -932,6 +1083,9 @@ document.getElementById('btn-questions-submit').addEventListener('click', buildS
 
 async function buildStrategy() {
   if (!selectedGoal || isLoading) return;
+
+  document.getElementById('help-bubble').style.display = 'none';
+  document.getElementById('help-panel').style.display  = 'none';
 
   const target  = document.getElementById('target-input').value.trim();
   const answers = collectGoalAnswers();
@@ -963,7 +1117,7 @@ async function buildStrategy() {
     const res = await fetch('/api/consultant/analyze', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ goal: goalText, target, timeframe: selectedTf }),
+      body:    JSON.stringify({ goal: goalText, target, timeframe: selectedTf, goal_label: selectedGoalLabel, goal_questions: answers }),
     });
     const data = await res.json();
     stopLoadingCycle();
@@ -1112,5 +1266,79 @@ function escapeHtml(str) {
     updateStepper(0);
   }
 })();
+
+// ── Floating help panel ─────────────────────────────────────────
+let helpHistory = [];
+let helpBusy    = false;
+
+function toggleHelpPanel() {
+  const panel = document.getElementById('help-panel');
+  const open  = panel.style.display === 'flex';
+  panel.style.display = open ? 'none' : 'flex';
+  if (!open && helpHistory.length === 0) {
+    _addHelpMsg('ai',
+      "Hi! I'm Zyon. Tell me a bit about your situation and I'll help you answer these questions.");
+  }
+  if (!open) document.getElementById('help-input').focus();
+}
+
+function _addHelpMsg(role, text) {
+  const box = document.getElementById('help-messages');
+  const div = document.createElement('div');
+  div.className = `help-msg ${role}`;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function sendHelpMessage() {
+  const input = document.getElementById('help-input');
+  const text  = input.value.trim();
+  if (!text || helpBusy) return;
+
+  input.value = '';
+  _addHelpMsg('user', text);
+
+  const context = `The user is filling out a consultant form with goal: "${selectedGoalLabel}". ` +
+    `They are answering questions about their business situation and want help thinking through their answers. ` +
+    `Keep replies concise and practical.`;
+  const history = helpHistory.length
+    ? helpHistory
+    : [{ role: 'user', content: context }, { role: 'assistant', content: "Understood, I'll help!" }];
+
+  helpHistory.push({ role: 'user', content: text });
+
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'help-msg ai';
+  typingDiv.innerHTML = '<em style="color:var(--text-dim);font-size:11px;">Thinking…</em>';
+  document.getElementById('help-messages').appendChild(typingDiv);
+  document.getElementById('help-messages').scrollTop = 9999;
+
+  document.getElementById('help-send').disabled = true;
+  helpBusy = true;
+
+  try {
+    const res  = await fetch('/api/consultant/followup', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ message: text, history }),
+    });
+    const data = await res.json();
+    typingDiv.remove();
+    const reply = data.response || data.error || 'Sorry, something went wrong.';
+    _addHelpMsg('ai', reply);
+    helpHistory.push({ role: 'assistant', content: reply });
+  } catch {
+    typingDiv.remove();
+    _addHelpMsg('ai', 'Network error. Please try again.');
+  } finally {
+    helpBusy = false;
+    document.getElementById('help-send').disabled = false;
+  }
+}
+
+document.getElementById('help-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendHelpMessage(); }
+});
 </script>
 {% endblock %}

@@ -419,6 +419,12 @@
        href="{{ url_for('consultant.consultant') }}">
       <span class="nav-icon">⚡</span> Consultant
     </a>
+    {% if session.get('username') in ('Or', 'Taeir') %}
+    <a class="nav-item {% if request.endpoint == 'admin.admin_panel' %}active{% endif %}"
+       href="{{ url_for('admin.admin_panel') }}">
+      <span class="nav-icon">◆</span> Admin
+    </a>
+    {% endif %}
   </div>
 
   <div class="sidebar-section">
